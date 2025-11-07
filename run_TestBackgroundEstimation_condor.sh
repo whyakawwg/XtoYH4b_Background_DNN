@@ -1,19 +1,22 @@
 #!/bin/bash
 
-input_dir="/data/dust/user/wanghaoy/XtoYH4b/DNN_more_variables_MC_test"
-output_dir="${input_dir}/WithNewModel_TestBackgroundEstimation_condor"
+input_dir="/data/dust/user/wanghaoy/XtoYH4b/merged_DNN"
+output_dir="${input_dir}/merged_TestBackgroundEstimation_condor"
 mkdir -p "$output_dir"
 
 output_job_dir="${output_dir}/4Tvs2T/job3"
 mkdir -p "$output_job_dir"
 
+# Use only the selected job here
+unset jobs
 declare -A jobs
 
-jobs["DNN_4bvs2b_DATA_DATA_UParTAK4"]="python3 Test_BackgroundEstimation_4bvs2b_DATA_DATA_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 0"
+jobs["DNN_4bvs2b_DATA_DATA_UParTAK4"]="python3 all_Test_BackgroundEstimation_DATA_DATA_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 0 --region 4btest"
 
 
 master_submit="$output_job_dir/condor_submit_test.sh"
 : > "$master_submit"
+
 
 for name in "${!jobs[@]}"; do
     exe_file="$output_job_dir/execute_${name}.sh"

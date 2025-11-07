@@ -1,15 +1,15 @@
 #!/bin/bash
 
-input_dir=""/data/dust/user/wanghaoy/XtoYH4b/DNN_more_variables_MC_test""
+input_dir=""/data/dust/user/wanghaoy/XtoYH4b/merged_DNN""
 output_dir="${input_dir}/TrainBackgroundEstimation_condor"
 mkdir -p "$output_dir"
 
-output_job_dir="${output_dir}/4Tvs2T/job3"
+output_job_dir="${output_dir}/4b/job3"
 mkdir -p "$output_job_dir"
 
 declare -A jobs
 #jobs["DNN_4Tvs2b_DATA_PNet"]="python3 Train_BackgroundEstimation_PNet.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN"
-jobs["DNN_4Tvs2b_DATA_UParTAK4"]="python3 Train_BackgroundEstimation_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN"
+jobs["DNN_4Tvs2b_DATA_UParTAK4"]="python3 all_Train_BackgroundEstimation_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --region 4b"
 # jobs["BDT"]="python3 Train_BackgroundEstimation.py --YEAR 2024 --isScaling 0 --isBalanceClass 1 --Model BDT"
 
 master_submit="$output_job_dir/condor_submit_train.sh"
