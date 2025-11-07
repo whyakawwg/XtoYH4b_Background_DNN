@@ -1,16 +1,16 @@
 #!/bin/bash
 
-input_dir="/data/dust/user/chokepra/XtoYH4b/DNN_more_variables_MC/SR/test_4variables/DNN_from_data/new_Tree"
-output_dir="${input_dir}/TestBackgroundEstimation_condor"
+input_dir="/data/dust/user/wanghaoy/XtoYH4b/DNN_more_variables_MC_test"
+output_dir="${input_dir}/WithNewModel_TestBackgroundEstimation_condor"
 mkdir -p "$output_dir"
 
 output_job_dir="${output_dir}/4Tvs2T/job3"
 mkdir -p "$output_job_dir"
 
 declare -A jobs
-jobs["DNN_4bvs2b_DATA_DATA_PNet"]="python3 Test_BackgroundEstimation_4bvs2b_DATA_DATA_PNet.py --YEAR 2024 --isScaling 1 --isBalanceClass 0"
+
 jobs["DNN_4bvs2b_DATA_DATA_UParTAK4"]="python3 Test_BackgroundEstimation_4bvs2b_DATA_DATA_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 0"
-jobs["DNN_4bvs2b_DATA_MC_UParTAK4"]="python3 Test_BackgroundEstimation_4bvs2b_DATA_MC_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 0"
+
 
 master_submit="$output_job_dir/condor_submit_test.sh"
 : > "$master_submit"
@@ -22,11 +22,10 @@ for name in "${!jobs[@]}"; do
     cat << EOF > "$exe_file"
 #!/bin/bash
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cd /afs/desy.de/user/c/chokepra/private/XtoYH4b/CMSSW_14_2_1/src
+cd /afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/
 eval \`scramv1 runtime -sh\`
 
 cd $input_dir
-source ~/myenv/bin/activate
 ${jobs[$name]}
 EOF
     chmod +x "$exe_file"

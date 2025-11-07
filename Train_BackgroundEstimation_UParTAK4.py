@@ -25,6 +25,7 @@ parser.add_argument('--isBalanceClass', default=1, type=int, help = "Balance cla
 parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
 # parser.add_argument('--isExcludedJetMass', default=1, type=int, help = "Balance class?")
 parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
+parser.add_argument('--region', default="4b", type=str, help = "Region of training data? Select from: '4b', '3b'")
 
 args = parser.parse_args()
 
@@ -46,7 +47,7 @@ def plot_hist(scores, mask, label, color, linestyle="solid"):
         density=True
     )
 
-input_file = uproot.open(f"{args.YEAR}/DATA/new/Tree_Data_parking.root")
+input_file = uproot.open(f"/data/dust/user/chokepra/XtoYH4b/For_Haoyu/Tree_Data_parking.root")
 # input_file = uproot.open(f"/data/dust/user/chatterj/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/Tree_Data_Parking.root")
 
 tree = input_file["Tree_JetInfo"]
@@ -90,9 +91,14 @@ H_mass = tree_arr["Hcand_mass"]
 # CvL4 = tree_arr["JetAK4_btag_UParTAK4CvL_4"]
 # QG4 = tree_arr["JetAK4_btag_UParTAK4QG_4"]
 
-common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+if args.region == "3b":
+    common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
 
-sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
+elif args.region == "4b":
+    common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
+
 bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask
 
 sig_idx = np.where(sig_mask)[0]
@@ -204,8 +210,8 @@ n_bkg = np.sum(combined_tree["signal"] == 0)
 print("Signal events:", n_sig)
 print("Background events:", n_bkg)
 
-plot_dir =  f"{args.YEAR}/4Tvs2T/{args.Model}_plots/without_dR/{args.Model}_plots_{Scaling}_{BalanceClass}_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/"
-model_dir = f"{args.YEAR}/4Tvs2T/Models/without_dR/Model_{args.Model}_{Scaling}_{BalanceClass}_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/"
+plot_dir =  f"{args.YEAR}/{args.region}/{args.Model}_plots/without_dR/{args.Model}_plots_{Scaling}_{BalanceClass}_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/"
+model_dir = f"{args.YEAR}/{args.region}/Models/without_dR/Model_{args.Model}_{Scaling}_{BalanceClass}_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/"
 
 os.makedirs(plot_dir, exist_ok=True)
 os.makedirs(model_dir, exist_ok=True)

@@ -99,7 +99,7 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     ax.legend(handles_ax + handles_rax, labels_ax + labels_rax)
 
     # outputs
-    out_dir = f"{args.YEAR}/3Tvs2T/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}_DATA_DATA_UParTAK4"
+    out_dir = f"{args.YEAR}/{args.region}/DNN_reweighting_plots/without_dR/DNN_reweighting_plots_{Scaling}_{BalanceClass}_DATA_DATA_UParTAK4"
     os.makedirs(out_dir, exist_ok=True)
     plt.savefig(f"{out_dir}/{var}_{suffix}.png", dpi=300, bbox_inches="tight")
     plt.savefig(f"{out_dir}/{var}_{suffix}.pdf", bbox_inches="tight")
@@ -124,14 +124,15 @@ if __name__ == "__main__":
     parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
     # parser.add_argument('--isExcludedJetMass', default=1, type=int, help = "Balance class?")
     # parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
+    parser.add_argument('--region', default="4btest", type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW'.")
 
     args = parser.parse_args()
 
     MC = False
     isHcand_index_available = False
-    closure = ["3b", "2b", "2b_w"]
+    #closure = ["4b", "2b", "2b_w"]
 
-    input_f = f"{args.YEAR}/DATA/new/Tree_Data_parking.root"
+    input_f = f"/data/dust/user/chokepra/XtoYH4b/For_Haoyu/Tree_Data_parking.root"
     print(input_f)
 
     input_file = uproot.open(input_f)
@@ -147,9 +148,9 @@ if __name__ == "__main__":
                 'JetAK4_phi_1', 'JetAK4_phi_2', 'JetAK4_phi_3', 'JetAK4_phi_4', 
                 'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4', 
                 # "JetAK4_Hcand_index_1", "JetAK4_Hcand_index_2", "JetAK4_Hcand_index_3", "JetAK4_Hcand_index_4",
-                'JetAK4_btag_UParTAK4CvB_1', 'JetAK4_btag_UParTAK4CvB_2', 'JetAK4_btag_UParTAK4CvB_4', #'JetAK4_btag_UParTAK4CvB_3'
-                'JetAK4_btag_UParTAK4CvL_1', 'JetAK4_btag_UParTAK4CvL_2', 'JetAK4_btag_UParTAK4CvL_4', #'JetAK4_btag_UParTAK4CvL_3'
-                'JetAK4_btag_UParTAK4QG_1', 'JetAK4_btag_UParTAK4QG_2', 'JetAK4_btag_UParTAK4QG_4', #'JetAK4_btag_UParTAK4QG_3'
+                # 'JetAK4_btag_UParTAK4CvB_1', 'JetAK4_btag_UParTAK4CvB_2', 'JetAK4_btag_UParTAK4CvB_4', #'JetAK4_btag_UParTAK4CvB_3'
+                # 'JetAK4_btag_UParTAK4CvL_1', 'JetAK4_btag_UParTAK4CvL_2', 'JetAK4_btag_UParTAK4CvL_4', #'JetAK4_btag_UParTAK4CvL_3'
+                # 'JetAK4_btag_UParTAK4QG_1', 'JetAK4_btag_UParTAK4QG_2', 'JetAK4_btag_UParTAK4QG_4', #'JetAK4_btag_UParTAK4QG_3'
                 'Hcand_mass', 'Ycand_mass'] + (['Event_weight'] if MC else [])
 
     # columns = ["JetAK4_btag_PNetB_WP_1", "JetAK4_btag_PNetB_WP_2", "JetAK4_btag_PNetB_WP_3", "JetAK4_btag_PNetB_WP_4",
@@ -172,13 +173,29 @@ if __name__ == "__main__":
 
     H_mass = tree_arr["Hcand_mass"]
 
-    CvB4 = tree_arr["JetAK4_btag_UParTAK4CvB_4"]
-    CvL4 = tree_arr["JetAK4_btag_UParTAK4CvL_4"]
-    QG4 = tree_arr["JetAK4_btag_UParTAK4QG_4"]
+    # CvB4 = tree_arr["JetAK4_btag_UParTAK4CvB_4"]
+    # CvL4 = tree_arr["JetAK4_btag_UParTAK4CvL_4"]
+    # QG4 = tree_arr["JetAK4_btag_UParTAK4QG_4"]
 
-    common_mask = ((H_mass >= 90) & (H_mass <= 150)) & (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+    if args.region == "3bHiggsMW":
+        common_mask = ((H_mass >= 90) & (H_mass <= 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
+        model_dir = "3b"
+        closure = ["3b_HiggsMW", "2b", "2b_w"]
+    elif args.region == "3btest":
+        common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
+        model_dir = "3b"
+        closure = ["3b", "2b", "2b_w"]
+    elif args.region == "4btest":
+        common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
+        model_dir = "4b"
+        closure = ["4b", "2b", "2b_w"]
+    else:
+        print("Please select a valid region: '4btest', '3btest', '3bHiggsMW'")
+        exit(1)
 
-    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
     bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask
 
     sig_idx = np.where(sig_mask)[0]
@@ -267,6 +284,7 @@ if __name__ == "__main__":
     drop_cols += [f"JetAK4_btag_UParTAK4B_WP_{i+1}" for i in range(njets)]
     drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
     drop_cols += ["Hcand_mass", "Ycand_mass"]
+    drop_cols += ["dR_1", "dR_2"]
 
     for col in drop_cols:
         if col in combined_tree:
@@ -302,7 +320,7 @@ if __name__ == "__main__":
 
     # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=args.splitfraction, stratify=y, random_state=42)
 
-    model = load_model("2024/3Tvs2T/Models/Model_DNN_Scaling_BalanceClass_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/model.h5")
+    model = load_model(f"{args.YEAR}/{model_dir}/Models/without_dR/Model_DNN_Scaling_BalanceClass_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/model.h5")
         
     score = model.predict(X).ravel()
 

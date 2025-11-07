@@ -99,7 +99,7 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     ax.legend(handles_ax + handles_rax, labels_ax + labels_rax)
 
     # outputs
-    out_dir = f"{args.YEAR}/4Tvs2T/DNN_reweighting_plots/without_dR/DNN_reweighting_plots_{Scaling}_{BalanceClass}_DATA_DATA_UParTAK4"
+    out_dir = f"{args.YEAR}/{args.region}/DNN_reweighting_plots/without_dR/DNN_reweighting_plots_{Scaling}_{BalanceClass}_DATA_DATA_UParTAK4"
     os.makedirs(out_dir, exist_ok=True)
     plt.savefig(f"{out_dir}/{var}_{suffix}.png", dpi=300, bbox_inches="tight")
     plt.savefig(f"{out_dir}/{var}_{suffix}.pdf", bbox_inches="tight")
@@ -124,14 +124,15 @@ if __name__ == "__main__":
     parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
     # parser.add_argument('--isExcludedJetMass', default=1, type=int, help = "Balance class?")
     # parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
+    parser.add_argument('--region', default="4btest", type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW'.")
 
     args = parser.parse_args()
 
     MC = False
     isHcand_index_available = False
-    closure = ["4b", "2b", "2b_w"]
+    #closure = ["4b", "2b", "2b_w"]
 
-    input_f = f"{args.YEAR}/DATA/new/Tree_Data_parking.root"
+    input_f = f"/data/dust/user/chokepra/XtoYH4b/For_Haoyu/Tree_Data_parking.root"
     print(input_f)
 
     input_file = uproot.open(input_f)
@@ -176,9 +177,25 @@ if __name__ == "__main__":
     # CvL4 = tree_arr["JetAK4_btag_UParTAK4CvL_4"]
     # QG4 = tree_arr["JetAK4_btag_UParTAK4QG_4"]
 
-    common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+    if args.region == "3bHiggsMW":
+        common_mask = ((H_mass >= 90) & (H_mass <= 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
+        model_dir = "3b"
+        closure = ["3b_HiggsMW", "2b", "2b_w"]
+    elif args.region == "3btest":
+        common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
+        model_dir = "3b"
+        closure = ["3b", "2b", "2b_w"]
+    elif args.region == "4btest":
+        common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
+        model_dir = "4b"
+        closure = ["4b", "2b", "2b_w"]
+    else:
+        print("Please select a valid region: '4btest', '3btest', '3bHiggsMW'")
+        exit(1)
 
-    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
     bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask
 
     sig_idx = np.where(sig_mask)[0]
@@ -303,7 +320,7 @@ if __name__ == "__main__":
 
     # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=args.splitfraction, stratify=y, random_state=42)
 
-    model = load_model("2024/4Tvs2T/Models/without_dR/Model_DNN_Scaling_BalanceClass_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/model.h5")
+    model = load_model(f"{args.YEAR}/{model_dir}/Models/without_dR/Model_DNN_Scaling_BalanceClass_HcandSelection_addMoreTagging_remove3rdtagging_UParTAK4_All/model.h5")
         
     score = model.predict(X).ravel()
 
