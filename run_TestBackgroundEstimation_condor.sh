@@ -1,17 +1,25 @@
 #!/bin/bash
 
-input_dir="/data/dust/user/wanghaoy/XtoYH4b/merged_DNN"
-output_dir="${input_dir}/merged_TestBackgroundEstimation_condor"
+test_region="4btest" # Change the test region: "4btest", "3btest", "3bHiggsMW"
+
+CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
+
+Test_script_dir="/afs/desy.de/user/w/wanghaoy/private/work/XtoYH4b_Background_DNN/Test_BackgroundEstimation_DATA_DATA_UParTAK4.py"
+
+input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_runscript"
+output_dir="${input_dir}/TestBackgroundEstimation_condor"
 mkdir -p "$output_dir"
 
-output_job_dir="${output_dir}/4Tvs2T/job3"
+output_job_dir="${output_dir}/${test_region}/job3"
 mkdir -p "$output_job_dir"
+
+cp "$Test_script_dir" "$input_dir"
 
 # Use only the selected job here
 unset jobs
 declare -A jobs
 
-jobs["DNN_4bvs2b_DATA_DATA_UParTAK4"]="python3 all_Test_BackgroundEstimation_DATA_DATA_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 0 --region 4btest"
+jobs["DNN_${test_region}_DATA_DATA_UParTAK4"]="python3 Test_BackgroundEstimation_DATA_DATA_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 0 --TestRegion ${test_region} "
 
 
 master_submit="$output_job_dir/condor_submit_test.sh"
@@ -25,7 +33,7 @@ for name in "${!jobs[@]}"; do
     cat << EOF > "$exe_file"
 #!/bin/bash
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cd /afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/
+cd $CMSSW_dir
 eval \`scramv1 runtime -sh\`
 
 cd $input_dir

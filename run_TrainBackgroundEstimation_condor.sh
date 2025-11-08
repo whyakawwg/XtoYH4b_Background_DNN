@@ -1,15 +1,23 @@
 #!/bin/bash
 
-input_dir=""/data/dust/user/wanghaoy/XtoYH4b/merged_DNN""
+train_region="4b" # Change the train region: "4b", "3b"
+
+CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
+
+Train_script_dir="/afs/desy.de/user/w/wanghaoy/private/work/XtoYH4b_Background_DNN/Train_BackgroundEstimation_UParTAK4.py"
+
+input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_runscript"
 output_dir="${input_dir}/TrainBackgroundEstimation_condor"
 mkdir -p "$output_dir"
 
-output_job_dir="${output_dir}/4b/job3"
+output_job_dir="${output_dir}/${train_region}/job3"
 mkdir -p "$output_job_dir"
+
+cp "$Train_script_dir" "$input_dir"
 
 declare -A jobs
 #jobs["DNN_4Tvs2b_DATA_PNet"]="python3 Train_BackgroundEstimation_PNet.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN"
-jobs["DNN_4Tvs2b_DATA_UParTAK4"]="python3 all_Train_BackgroundEstimation_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --region 4b"
+jobs["DNN_${train_region}vs2b_DATA_UParTAK4"]="python3 Train_BackgroundEstimation_UParTAK4.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --region ${train_region}"
 # jobs["BDT"]="python3 Train_BackgroundEstimation.py --YEAR 2024 --isScaling 0 --isBalanceClass 1 --Model BDT"
 
 master_submit="$output_job_dir/condor_submit_train.sh"
@@ -22,7 +30,7 @@ for name in "${!jobs[@]}"; do
     cat << EOF > "$exe_file"
 #!/bin/bash
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cd /afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/
+cd $CMSSW_dir
 eval \`scramv1 runtime -sh\`
 
 cd $input_dir

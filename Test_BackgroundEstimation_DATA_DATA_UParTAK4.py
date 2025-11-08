@@ -77,11 +77,18 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
 
     hep.style.use("CMS")
     fig, (ax, rax) = plt.subplots(2, 1, gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1), sharex=True)
-    hep.cms.label("Preliminary", data=True, lumi=9.45, com=13.6, year=2024, ax=ax)
+    hep.cms.label("Preliminary", data=True, lumi=data_lumi, com=13.6, year=2024, ax=ax)
 
     # plotting
-    hep.histplot([y_3T, y_2T, y_2T_w], bins=edges, label=[label_[0], label_[1], label_[2]], ax=ax, histtype="step")
-    if var in ["MX", "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4"]: ax.set_yscale("log")
+    hep.histplot([y_3T, y_2T, y_2T_w],
+                 bins=edges,
+                 label=[label_[0], label_[1], label_[2]],
+                 color=["#ff7f0e", "#d62728", "#1f77b4"],
+                 ax=ax,
+                 histtype="step")
+
+    if var in ["MX", "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4"]:
+        ax.set_yscale("log")
     ax.set_ylabel("Entries")
     ax.set_xlim(*xlim)
     ax.legend()
@@ -99,7 +106,7 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     ax.legend(handles_ax + handles_rax, labels_ax + labels_rax)
 
     # outputs
-    out_dir = f"{args.YEAR}/{args.region}/DNN_reweighting_plots/without_dR/DNN_reweighting_plots_{Scaling}_{BalanceClass}_DATA_DATA_UParTAK4"
+    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/without_dR/DNN_reweighting_plots_{Scaling}_{BalanceClass}_DATA_DATA_UParTAK4"
     os.makedirs(out_dir, exist_ok=True)
     plt.savefig(f"{out_dir}/{var}_{suffix}.png", dpi=300, bbox_inches="tight")
     plt.savefig(f"{out_dir}/{var}_{suffix}.pdf", bbox_inches="tight")
@@ -124,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
     # parser.add_argument('--isExcludedJetMass', default=1, type=int, help = "Balance class?")
     # parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
-    parser.add_argument('--region', default="4btest", type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW'.")
+    parser.add_argument('--TestRegion', default="4btest", type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW'.")
 
     args = parser.parse_args()
 
@@ -177,23 +184,23 @@ if __name__ == "__main__":
     # CvL4 = tree_arr["JetAK4_btag_UParTAK4CvL_4"]
     # QG4 = tree_arr["JetAK4_btag_UParTAK4QG_4"]
 
-    if args.region == "3bHiggsMW":
+    if args.TestRegion == "3bHiggsMW":
         common_mask = ((H_mass >= 90) & (H_mass <= 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
         sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
         model_dir = "3b"
         closure = ["3b_HiggsMW", "2b", "2b_w"]
-    elif args.region == "3btest":
+    elif args.TestRegion == "3btest":
         common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
         sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
         model_dir = "3b"
         closure = ["3b", "2b", "2b_w"]
-    elif args.region == "4btest":
+    elif args.TestRegion == "4btest":
         common_mask = ((H_mass < 90) | (H_mass > 150)) #& (CvB4 >= 0) & (CvL4 >= 0) & (QG4 >= 0)
         sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
         model_dir = "4b"
         closure = ["4b", "2b", "2b_w"]
     else:
-        print("Please select a valid region: '4btest', '3btest', '3bHiggsMW'")
+        print("Please select a valid test region: '4btest', '3btest', '3bHiggsMW'")
         exit(1)
 
     bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask
@@ -216,6 +223,21 @@ if __name__ == "__main__":
         signal_flag = np.concatenate([np.ones(len(sig_idx)), np.zeros(len(bkg_idx))])
 
         BalanceClass = "NoBalanceClass"
+
+    if args.YEAR == "2022":
+        data_lumi = 7.98
+    elif args.YEAR == "2022EE":
+        data_lumi = 26.67
+    elif args.YEAR == "2023":
+        data_lumi = 11.24
+    elif args.YEAR == "2023BPiX":
+        data_lumi = 9.45
+    elif args.YEAR == "2024":
+        data_lumi = 108.96
+    else:
+        print("Please select a valid YEAR: '2022', '2022EE', '2023', '2023BPiX', '2024'")
+        exit(1)
+
 
     n_events = len(all_idx)
 
