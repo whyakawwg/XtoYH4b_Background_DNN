@@ -6,7 +6,7 @@ CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
 
 Test_script_dir="/afs/desy.de/user/w/wanghaoy/private/work/XtoYH4b_Background_DNN/Test_BackgroundEstimation_DATA_DATA_UParTAK4.py"
 
-input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_runscript"
+input_dir="/data/dust/user/wanghaoy/XtoYH4b/check_chi2_withjetmass"
 output_dir="${input_dir}/TestBackgroundEstimation_condor"
 mkdir -p "$output_dir"
 

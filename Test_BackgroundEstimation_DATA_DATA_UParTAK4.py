@@ -71,6 +71,9 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     pval_3T_2T = hist_3T.KolmogorovTest(hist_2T, "U")
     pval_3T_2T_w = hist_3T.KolmogorovTest(hist_2T_w, "U")
 
+    chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "UU NORM P CHI2/NDF")
+    chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "UU NORM P CHI2/NDF")
+
     # bin centers
     edges = np.array(bins)
     x = 0.5 * (edges[1:] + edges[:-1])
@@ -83,7 +86,7 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     hep.histplot([y_3T, y_2T, y_2T_w],
                  bins=edges,
                  label=[label_[0], label_[1], label_[2]],
-                 color=["#ff7f0e", "#d62728", "#1f77b4"],
+                 color=["green", "red", "blue"],
                  ax=ax,
                  histtype="step")
 
@@ -96,6 +99,12 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     # plot ratio
     rax.errorbar(x, ratio_3T_2T, yerr=err_ratio_3T_2T, fmt='o', color='red', label=f"{label_[0]}/{label_[1]} p-value={pval_3T_2T:.2e}")
     rax.errorbar(x, ratio_3T_2T_w, yerr=err_ratio_3T_2T_w, fmt='o', color='blue', label=f"{label_[0]}/{label_[2]} p-value={pval_3T_2T_w:.2e}")
+
+    rax.errorbar(x, ratio_3T_2T, yerr=err_ratio_3T_2T, fmt='o', color='red',
+                 label=rf"${label_[0]}/{label_[1]}\ \chi^2={chi2_3T_2T:.2f}$")
+    rax.errorbar(x, ratio_3T_2T_w, yerr=err_ratio_3T_2T_w, fmt='o', color='blue',
+                 label=rf"${label_[0]}/{label_[2]}\ \chi^2={chi2_3T_2T_w:.2f}$")
+
     rax.axhline(1.0, color='black', linestyle='--')
     rax.set_ylim(*ratio_ylim)
     rax.set_ylabel("Ratio")
@@ -304,7 +313,7 @@ if __name__ == "__main__":
 
     drop_cols += Hcand_index_cols 
     drop_cols += [f"JetAK4_btag_UParTAK4B_WP_{i+1}" for i in range(njets)]
-    drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
+    #drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
     drop_cols += ["Hcand_mass", "Ycand_mass"]
     drop_cols += ["dR_1", "dR_2"]
 
@@ -373,11 +382,11 @@ if __name__ == "__main__":
     mx_bin_edges = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,2750,3000,3500,4000,4500])
     suff = "reweight"
 
-    plotting(arr_3T, arr_2T, add_bins_=True, bins_=bin_edges, var="Score", suffix=suff, ratio_ylim=[-2, 4], label_=closure)
-    plotting(arr_3T, arr_2T, add_bins_=True, bins_=mx_bin_edges, var="MX", suffix=suff, ratio_ylim=[0, 2], label_=closure)
+    plotting(arr_3T, arr_2T, add_bins_=True, bins_=bin_edges, var="Score", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+    plotting(arr_3T, arr_2T, add_bins_=True, bins_=mx_bin_edges, var="MX", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
 
     except_cols = ["signal", "MX", "Score", "Score_weights", "Event_weights", "Combined_weights"]
 
     for col in combined_tree.keys():
         if col not in except_cols:
-            plotting(arr_3T, arr_2T, add_bins_=False, bins_=None, var=col, suffix=suff, ratio_ylim=[0, 2], label_=closure)
+            plotting(arr_3T, arr_2T, add_bins_=False, bins_=None, var=col, suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
