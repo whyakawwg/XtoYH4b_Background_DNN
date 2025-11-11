@@ -68,11 +68,11 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     err_ratio_3T_2T_w = ratio_3T_2T_w * np.sqrt((err_3T / np.where(y_3T != 0, y_3T, 1e-8))**2 +
                                                (err_2T_w / np.where(y_2T_w != 0, y_2T_w, 1e-8))**2)
 
-    pval_3T_2T = hist_3T.KolmogorovTest(hist_2T, "U")
-    pval_3T_2T_w = hist_3T.KolmogorovTest(hist_2T_w, "U")
+#    pval_3T_2T = hist_3T.KolmogorovTest(hist_2T, "U")
+#    pval_3T_2T_w = hist_3T.KolmogorovTest(hist_2T_w, "U")
 
-    chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "UU NORM P CHI2/NDF")
-    chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "UU NORM P CHI2/NDF")
+    chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "UU P CHI2/NDF")
+    chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "UU P CHI2/NDF")
 
     # bin centers
     edges = np.array(bins)
@@ -86,7 +86,7 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     hep.histplot([y_3T, y_2T, y_2T_w],
                  bins=edges,
                  label=[label_[0], label_[1], label_[2]],
-                 color=["green", "red", "blue"],
+                 color=["orange", "red", "blue"],
                  ax=ax,
                  histtype="step")
 
@@ -97,8 +97,8 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     ax.legend()
 
     # plot ratio
-    rax.errorbar(x, ratio_3T_2T, yerr=err_ratio_3T_2T, fmt='o', color='red', label=f"{label_[0]}/{label_[1]} p-value={pval_3T_2T:.2e}")
-    rax.errorbar(x, ratio_3T_2T_w, yerr=err_ratio_3T_2T_w, fmt='o', color='blue', label=f"{label_[0]}/{label_[2]} p-value={pval_3T_2T_w:.2e}")
+    #rax.errorbar(x, ratio_3T_2T, yerr=err_ratio_3T_2T, fmt='o', color='red', label=f"{label_[0]}/{label_[1]} p-value={pval_3T_2T:.2e}")
+    #rax.errorbar(x, ratio_3T_2T_w, yerr=err_ratio_3T_2T_w, fmt='o', color='blue', label=f"{label_[0]}/{label_[2]} p-value={pval_3T_2T_w:.2e}")
 
     rax.errorbar(x, ratio_3T_2T, yerr=err_ratio_3T_2T, fmt='o', color='red',
                  label=rf"${label_[0]}/{label_[1]}\ \chi^2={chi2_3T_2T:.2f}$")
