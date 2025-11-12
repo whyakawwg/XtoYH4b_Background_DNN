@@ -71,8 +71,8 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
 #    pval_3T_2T = hist_3T.KolmogorovTest(hist_2T, "U")
 #    pval_3T_2T_w = hist_3T.KolmogorovTest(hist_2T_w, "U")
 
-    chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "UU P CHI2/NDF")
-    chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "UU P CHI2/NDF")
+    chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "WW P CHI2/NDF")
+    chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "WW P CHI2/NDF")
 
     # bin centers
     edges = np.array(bins)
@@ -101,9 +101,9 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     #rax.errorbar(x, ratio_3T_2T_w, yerr=err_ratio_3T_2T_w, fmt='o', color='blue', label=f"{label_[0]}/{label_[2]} p-value={pval_3T_2T_w:.2e}")
 
     rax.errorbar(x, ratio_3T_2T, yerr=err_ratio_3T_2T, fmt='o', color='red',
-                 label=rf"${label_[0]}/{label_[1]}\ \chi^2={chi2_3T_2T:.2f}$")
+                 label=rf"${label_[0]}/{label_[1]}\ \frac{{\chi^2}}{{NDF}}={chi2_3T_2T:.2f}$")
     rax.errorbar(x, ratio_3T_2T_w, yerr=err_ratio_3T_2T_w, fmt='o', color='blue',
-                 label=rf"${label_[0]}/{label_[2]}\ \chi^2={chi2_3T_2T_w:.2f}$")
+                 label=rf"${label_[0]}/{label_[2]}\ \frac{{\chi^2}}{{NDF}}={chi2_3T_2T_w:.2f}$")
 
     rax.axhline(1.0, color='black', linestyle='--')
     rax.set_ylim(*ratio_ylim)
@@ -313,7 +313,7 @@ if __name__ == "__main__":
 
     drop_cols += Hcand_index_cols 
     drop_cols += [f"JetAK4_btag_UParTAK4B_WP_{i+1}" for i in range(njets)]
-    #drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
+    drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
     drop_cols += ["Hcand_mass", "Ycand_mass"]
     drop_cols += ["dR_1", "dR_2"]
 
