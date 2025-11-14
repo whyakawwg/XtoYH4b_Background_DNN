@@ -90,7 +90,7 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
                  ax=ax,
                  histtype="step")
 
-    if var in ["MX", "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4"]:
+    if var in ["MY", "MX", "MH", "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4"]:
         ax.set_yscale("log")
     ax.set_ylabel("Entries")
     ax.set_xlim(*xlim)
@@ -301,6 +301,9 @@ if __name__ == "__main__":
 
             dR1_arr[i], dR2_arr[i] = best_dRs
 
+    MH = tree_arr["Hcand_mass"][all_idx]
+    MY = tree_arr["Ycand_mass"][all_idx]
+
     combined_tree["dR_1"] = dR1_arr
     combined_tree["dR_2"] = dR2_arr
 
@@ -313,7 +316,7 @@ if __name__ == "__main__":
 
     drop_cols += Hcand_index_cols 
     drop_cols += [f"JetAK4_btag_UParTAK4B_WP_{i+1}" for i in range(njets)]
-    drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
+    # drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
     drop_cols += ["Hcand_mass", "Ycand_mass"]
     drop_cols += ["dR_1", "dR_2"]
 
@@ -362,6 +365,8 @@ if __name__ == "__main__":
     mx = (jets[:, 0] + jets[:, 1] + jets[:, 2] + jets[:, 3]).mass
 
     combined_tree["MX"] = mx
+    combined_tree["MY"] = MY
+    combined_tree["MH"] = MH
     combined_tree["Score"] = score
     combined_tree["Score_weights"] = score_weights
     combined_tree["Event_weights"] = event_weights
@@ -380,12 +385,21 @@ if __name__ == "__main__":
 
     bin_edges = np.linspace(0, 1, 51)
     mx_bin_edges = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,2750,3000,3500,4000,4500])
+    my_bin_edges = np.linspace(0,1000,51)
+    mh_bin_edges = np.linspace(0,300,51)
+    jet_mass_bin_edges = np.linspace(0, 100, 51)
     suff = "reweight"
 
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=bin_edges, var="Score", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=mx_bin_edges, var="MX", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+    plotting(arr_3T, arr_2T, add_bins_=True, bins_=my_bin_edges, var="MY", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+    plotting(arr_3T, arr_2T, add_bins_=True, bins_=mh_bin_edges, var="MH", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
 
-    except_cols = ["signal", "MX", "Score", "Score_weights", "Event_weights", "Combined_weights"]
+    except_cols = ["signal", "MX", "MY", "MH", "Score", "Score_weights", "Event_weights", "Combined_weights"]
+    for i in range(njets):
+        except_cols.append(f"JetAK4_mass_{i+1}")
+        col = f"JetAK4_mass_{i+1}"
+        plotting(arr_3T, arr_2T, add_bins_=True, bins_=jet_mass_bin_edges,var=col, suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
 
     for col in combined_tree.keys():
         if col not in except_cols:

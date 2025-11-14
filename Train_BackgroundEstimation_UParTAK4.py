@@ -178,7 +178,7 @@ combined_tree["dR_2"] = dR2_arr
 
 drop_cols = Hcand_index_cols 
 drop_cols += [f"JetAK4_btag_UParTAK4B_WP_{i+1}" for i in range(njets)]
-#drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
+# drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
 drop_cols += ["Hcand_mass", "Ycand_mass"]
 drop_cols += ["dR_1", "dR_2"]
 
