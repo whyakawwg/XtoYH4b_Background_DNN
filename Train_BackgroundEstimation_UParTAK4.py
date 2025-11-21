@@ -47,7 +47,7 @@ def plot_hist(scores, mask, label, color, linestyle="solid"):
         density=True
     )
 
-input_file = uproot.open(f"/data/dust/user/chokepra/XtoYH4b/For_Haoyu/Tree_Data_parking.root")
+input_file = uproot.open(f"/data/dust/user/chatterj/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/Tree_Data_Parking.root")
 # input_file = uproot.open(f"/data/dust/user/chatterj/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/Tree_Data_Parking.root")
 
 tree = input_file["Tree_JetInfo"]
@@ -55,12 +55,14 @@ n_events = tree.num_entries
 # n_events = 1000
 njets = 4
 
-### 2024
-columns = ['JetAK4_btag_UParTAK4B_WP_1', 'JetAK4_btag_UParTAK4B_WP_2', 'JetAK4_btag_UParTAK4B_WP_3', 'JetAK4_btag_UParTAK4B_WP_4', 
+### 2024: Note We use UParTAK4 b-tagging for 2024, but the name is consistent with previous years
+columns = ['JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
            'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 
            'JetAK4_eta_1', 'JetAK4_eta_2', 'JetAK4_eta_3', 'JetAK4_eta_4', 
            'JetAK4_phi_1', 'JetAK4_phi_2', 'JetAK4_phi_3', 'JetAK4_phi_4', 
-           'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4', 
+           'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4',
+           'JetAK4_add_pt', 'JetAK4_add_eta', 'JetAK4_add_phi', 'JetAK4_add_mass', 
+           'njets_add', 'HT_add',
         #    "JetAK4_Hcand_index_1", "JetAK4_Hcand_index_2", "JetAK4_Hcand_index_3", "JetAK4_Hcand_index_4",
         #   'JetAK4_btag_UParTAK4CvB_1', 'JetAK4_btag_UParTAK4CvB_2', 'JetAK4_btag_UParTAK4CvB_4', #'JetAK4_btag_UParTAK4CvB_3'
         #   'JetAK4_btag_UParTAK4CvL_1', 'JetAK4_btag_UParTAK4CvL_2', 'JetAK4_btag_UParTAK4CvL_4', #'JetAK4_btag_UParTAK4CvL_3'
@@ -80,10 +82,10 @@ columns = ['JetAK4_btag_UParTAK4B_WP_1', 'JetAK4_btag_UParTAK4B_WP_2', 'JetAK4_b
 
 tree_arr = tree.arrays(columns, library="np", entry_stop=n_events)
 
-wp1 = tree_arr["JetAK4_btag_UParTAK4B_WP_1"]
-wp2 = tree_arr["JetAK4_btag_UParTAK4B_WP_2"]
-wp3 = tree_arr["JetAK4_btag_UParTAK4B_WP_3"]
-wp4 = tree_arr["JetAK4_btag_UParTAK4B_WP_4"]
+wp1 = tree_arr["JetAK4_btag_B_WP_1"]
+wp2 = tree_arr["JetAK4_btag_B_WP_2"]
+wp3 = tree_arr["JetAK4_btag_B_WP_3"]
+wp4 = tree_arr["JetAK4_btag_B_WP_4"]
 
 H_mass = tree_arr["Hcand_mass"]
 
@@ -177,10 +179,11 @@ combined_tree["dR_1"] = dR1_arr
 combined_tree["dR_2"] = dR2_arr
 
 drop_cols = Hcand_index_cols 
-drop_cols += [f"JetAK4_btag_UParTAK4B_WP_{i+1}" for i in range(njets)]
-# drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
+drop_cols += [f"JetAK4_btag_B_WP_{i+1}" for i in range(njets)]
 drop_cols += ["Hcand_mass", "Ycand_mass"]
 drop_cols += ["dR_1", "dR_2"]
+drop_cols += ["HT_add", "njets_add"]
+drop_cols += [f"JetAK4_add_{var}" for var in ["pt", "eta", "phi", "mass"]]
 
 for col in drop_cols:
     if col in combined_tree:
@@ -320,7 +323,3 @@ plt.title("Feature Correlation Matrix")
 plt.tight_layout()
 plt.savefig(os.path.join(plot_dir, "Feature_Correlation_Matrix.png"), dpi=300)
 plt.close()
-
-
-
-

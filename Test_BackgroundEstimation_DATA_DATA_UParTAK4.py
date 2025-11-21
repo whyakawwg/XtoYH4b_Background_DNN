@@ -43,13 +43,6 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     hist_2T.Scale(1.0 / hist_2T.Integral())
     hist_2T_w.Scale(1.0 / hist_2T_w.Integral())
 
-    # ratio
-    # ratio_3T_2T = hist_3T.Clone("ratio_3T_2T")
-    # ratio_3T_2T.Divide(hist_2T)
-
-    # ratio_3T_2T_w = hist_3T.Clone("ratio_3T_2T_w")
-    # ratio_3T_2T_w.Divide(hist_2T_w)
-
     # get bin contents and errors
     y_3T = np.array([hist_3T.GetBinContent(i+1) for i in range(n_bins)])
     y_2T = np.array([hist_2T.GetBinContent(i+1) for i in range(n_bins)])
@@ -67,9 +60,6 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
                                            (err_2T / np.where(y_2T != 0, y_2T, 1e-8))**2)
     err_ratio_3T_2T_w = ratio_3T_2T_w * np.sqrt((err_3T / np.where(y_3T != 0, y_3T, 1e-8))**2 +
                                                (err_2T_w / np.where(y_2T_w != 0, y_2T_w, 1e-8))**2)
-
-#    pval_3T_2T = hist_3T.KolmogorovTest(hist_2T, "U")
-#    pval_3T_2T_w = hist_3T.KolmogorovTest(hist_2T_w, "U")
 
     chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "WW P CHI2/NDF")
     chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "WW P CHI2/NDF")
@@ -90,7 +80,7 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
                  ax=ax,
                  histtype="step")
 
-    if var in ["MY", "MX", "MH", "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4"]:
+    if var in ["MY", "MX", "MH", "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4", "HT_add"]:
         ax.set_yscale("log")
     ax.set_ylabel("Entries")
     ax.set_xlim(*xlim)
@@ -148,7 +138,8 @@ if __name__ == "__main__":
     isHcand_index_available = False
     #closure = ["4b", "2b", "2b_w"]
 
-    input_f = f"/data/dust/user/chokepra/XtoYH4b/For_Haoyu/Tree_Data_parking.root"
+    #input_f = f"/data/dust/user/chokepra/XtoYH4b/For_Haoyu/Tree_Data_parking.root"
+    input_f = f"/data/dust/user/chatterj/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/Tree_Data_Parking.root"
     print(input_f)
 
     input_file = uproot.open(input_f)
@@ -158,16 +149,20 @@ if __name__ == "__main__":
     n_events = 40000000
     njets = 4
 
-    columns = ['JetAK4_btag_UParTAK4B_WP_1', 'JetAK4_btag_UParTAK4B_WP_2', 'JetAK4_btag_UParTAK4B_WP_3', 'JetAK4_btag_UParTAK4B_WP_4', 
-                'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 
-                'JetAK4_eta_1', 'JetAK4_eta_2', 'JetAK4_eta_3', 'JetAK4_eta_4', 
-                'JetAK4_phi_1', 'JetAK4_phi_2', 'JetAK4_phi_3', 'JetAK4_phi_4', 
-                'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4', 
-                # "JetAK4_Hcand_index_1", "JetAK4_Hcand_index_2", "JetAK4_Hcand_index_3", "JetAK4_Hcand_index_4",
-                # 'JetAK4_btag_UParTAK4CvB_1', 'JetAK4_btag_UParTAK4CvB_2', 'JetAK4_btag_UParTAK4CvB_4', #'JetAK4_btag_UParTAK4CvB_3'
-                # 'JetAK4_btag_UParTAK4CvL_1', 'JetAK4_btag_UParTAK4CvL_2', 'JetAK4_btag_UParTAK4CvL_4', #'JetAK4_btag_UParTAK4CvL_3'
-                # 'JetAK4_btag_UParTAK4QG_1', 'JetAK4_btag_UParTAK4QG_2', 'JetAK4_btag_UParTAK4QG_4', #'JetAK4_btag_UParTAK4QG_3'
-                'Hcand_mass', 'Ycand_mass'] + (['Event_weight'] if MC else [])
+    ### 2024: Note We use UParTAK4 b-tagging for 2024, but the name is consistent with previous years
+    columns = ['JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
+            'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 
+            'JetAK4_eta_1', 'JetAK4_eta_2', 'JetAK4_eta_3', 'JetAK4_eta_4', 
+            'JetAK4_phi_1', 'JetAK4_phi_2', 'JetAK4_phi_3', 'JetAK4_phi_4', 
+            'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4',
+            #'JetAK4_add_pt', 'JetAK4_add_eta', 'JetAK4_add_phi', 'JetAK4_add_mass', 
+            'njets_add', 'HT_add',
+            
+            #    "JetAK4_Hcand_index_1", "JetAK4_Hcand_index_2", "JetAK4_Hcand_index_3", "JetAK4_Hcand_index_4",
+            #   'JetAK4_btag_UParTAK4CvB_1', 'JetAK4_btag_UParTAK4CvB_2', 'JetAK4_btag_UParTAK4CvB_4', #'JetAK4_btag_UParTAK4CvB_3'
+            #   'JetAK4_btag_UParTAK4CvL_1', 'JetAK4_btag_UParTAK4CvL_2', 'JetAK4_btag_UParTAK4CvL_4', #'JetAK4_btag_UParTAK4CvL_3'
+            #   'JetAK4_btag_UParTAK4QG_1', 'JetAK4_btag_UParTAK4QG_2', 'JetAK4_btag_UParTAK4QG_4', #'JetAK4_btag_UParTAK4QG_3'
+            'Hcand_mass', 'Ycand_mass']
 
     # columns = ["JetAK4_btag_PNetB_WP_1", "JetAK4_btag_PNetB_WP_2", "JetAK4_btag_PNetB_WP_3", "JetAK4_btag_PNetB_WP_4",
     #             "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4",
@@ -182,10 +177,10 @@ if __name__ == "__main__":
 
     tree_arr = tree.arrays(columns, library="np", entry_stop=n_events)
 
-    wp1 = tree_arr["JetAK4_btag_UParTAK4B_WP_1"]
-    wp2 = tree_arr["JetAK4_btag_UParTAK4B_WP_2"]
-    wp3 = tree_arr["JetAK4_btag_UParTAK4B_WP_3"]
-    wp4 = tree_arr["JetAK4_btag_UParTAK4B_WP_4"]
+    wp1 = tree_arr["JetAK4_btag_B_WP_1"]
+    wp2 = tree_arr["JetAK4_btag_B_WP_2"]
+    wp3 = tree_arr["JetAK4_btag_B_WP_3"]
+    wp4 = tree_arr["JetAK4_btag_B_WP_4"]
 
     H_mass = tree_arr["Hcand_mass"]
 
@@ -301,11 +296,13 @@ if __name__ == "__main__":
 
             dR1_arr[i], dR2_arr[i] = best_dRs
 
-    MH = tree_arr["Hcand_mass"][all_idx]
-    MY = tree_arr["Ycand_mass"][all_idx]
-
     combined_tree["dR_1"] = dR1_arr
     combined_tree["dR_2"] = dR2_arr
+
+    MH = tree_arr["Hcand_mass"][all_idx]
+    MY = tree_arr["Ycand_mass"][all_idx]
+    n_jets_add = tree_arr["njets_add"][all_idx]
+    HT_additional = tree_arr["HT_add"][all_idx]
 
     if MC:
         event_weights = combined_tree["Event_weight"]
@@ -315,10 +312,11 @@ if __name__ == "__main__":
         drop_cols = []
 
     drop_cols += Hcand_index_cols 
-    drop_cols += [f"JetAK4_btag_UParTAK4B_WP_{i+1}" for i in range(njets)]
-    # drop_cols += [f"JetAK4_mass_{i+1}" for i in range(njets)] 
+    drop_cols += [f"JetAK4_btag_B_WP_{i+1}" for i in range(njets)]
     drop_cols += ["Hcand_mass", "Ycand_mass"]
     drop_cols += ["dR_1", "dR_2"]
+    drop_cols += [f"JetAK4_add_{var}" for var in ["pt", "eta", "phi", "mass"]]
+    drop_cols += ["HT_add", "njets_add"]
 
     for col in drop_cols:
         if col in combined_tree:
@@ -371,6 +369,8 @@ if __name__ == "__main__":
     combined_tree["Score_weights"] = score_weights
     combined_tree["Event_weights"] = event_weights
     combined_tree["Combined_weights"] = combined_weights
+    combined_tree["n_jets_add"] = n_jets_add
+    combined_tree["HT_additional"] = HT_additional
 
     # 3T and 2T below are not true closure we are looking for, it's just names at my first code
     # for true closure please carefully see 'sig_mask' and 'bkg_mask' and remember to change the label at 'closure' list
@@ -388,14 +388,16 @@ if __name__ == "__main__":
     my_bin_edges = np.linspace(0,1000,51)
     mh_bin_edges = np.linspace(0,300,51)
     jet_mass_bin_edges = np.linspace(0, 100, 51)
+    njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
     suff = "reweight"
 
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=bin_edges, var="Score", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=mx_bin_edges, var="MX", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=my_bin_edges, var="MY", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=mh_bin_edges, var="MH", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+    plotting(arr_3T, arr_2T, add_bins_=True, bins_=njets_add_bin_edges, var="n_jets_add", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
 
-    except_cols = ["signal", "MX", "MY", "MH", "Score", "Score_weights", "Event_weights", "Combined_weights"]
+    except_cols = ["signal", "MX", "MY", "MH", "Score", "Score_weights", "Event_weights", "Combined_weights", "n_jets_add"]
     for i in range(njets):
         except_cols.append(f"JetAK4_mass_{i+1}")
         col = f"JetAK4_mass_{i+1}"
