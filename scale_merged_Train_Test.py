@@ -337,9 +337,6 @@ combined_tree["dR_2"] = dR2_arr
 dR1_plot = dR1_arr.copy()
 dR2_plot = dR2_arr.copy()
 # expose plotting-friendly names so plotting(..., var="dR1_plot") works
-combined_tree["dR1_plot"] = dR1_plot
-combined_tree["dR2_plot"] = dR2_plot
-
 
 if args.isMC == 1:
     event_weights = combined_tree["Event_weight"]
@@ -579,6 +576,9 @@ elif args.runType == "train-test" or args.runType == "test-only":
     combined_tree["Combined_weights"] = combined_weights
     combined_tree["n_jets_add"] = n_jets_add
     combined_tree["HT_additional"] = HT_additional
+
+    combined_tree["dR1_plot"] = dR1_plot
+    combined_tree["dR2_plot"] = dR2_plot
 
     # 3T and 2T below are not true closure we are looking for, it's just names at my first code
     # for true closure please carefully see 'sig_mask' and 'bkg_mask' and remember to change the label at 'closure' list
