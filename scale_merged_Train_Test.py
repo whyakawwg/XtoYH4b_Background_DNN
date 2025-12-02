@@ -189,10 +189,14 @@ columns = ['JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'Je
            'JetAK4_phi_1', 'JetAK4_phi_2', 'JetAK4_phi_3', 'JetAK4_phi_4', 
            'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4',
            'JetAK4_add_pt', 'JetAK4_add_eta', 'JetAK4_add_phi', 'JetAK4_add_mass', 
-           'njets_add', 'HT_add',
            'Hcand_1_pt', 'Hcand_1_eta', 'Hcand_1_phi', 'Hcand_1_mass',
            'Hcand_2_pt', 'Hcand_2_eta', 'Hcand_2_phi', 'Hcand_2_mass',
+           'H1_b1b2_deta', 'H1_b1b2_dphi', 'H1_b1b2_dR',
+           'H2_b1b2_deta', 'H2_b1b2_dphi', 'H2_b1b2_dR',
+           'H1H2_pt', 'H1H2_eta', 'H1H2_phi', #'H1H2_mass',
+           'H1H2_deta', 'H1H2_dphi', 'H1H2_dR',
            'HT_4j',
+           'njets_add', 'HT_add',
            'Hcand_mass', 'Ycand_mass']
 
 tree_arr = tree.arrays(columns, library="np", entry_stop=n_events)
@@ -322,12 +326,20 @@ if args.isScaling == 1:
 else:
     Scaling = "NoScaling"
 
-
 if args.runType == "train-test" or args.runType == "test-only":
     MH = tree_arr["Hcand_mass"][all_idx]
     MY = tree_arr["Ycand_mass"][all_idx]
     n_jets_add = tree_arr["njets_add"][all_idx]
     HT_additional = tree_arr["HT_add"][all_idx]
+
+combined_tree["dR_1"] = dR1_arr
+combined_tree["dR_2"] = dR2_arr
+dR1_plot = dR1_arr.copy()
+dR2_plot = dR2_arr.copy()
+# expose plotting-friendly names so plotting(..., var="dR1_plot") works
+combined_tree["dR1_plot"] = dR1_plot
+combined_tree["dR2_plot"] = dR2_plot
+
 
 if args.isMC == 1:
     event_weights = combined_tree["Event_weight"]
@@ -505,48 +517,48 @@ if args.runType == "train-only":
 
 
 elif args.runType == "train-test" or args.runType == "test-only":
+    features_raw = features.copy()
     if args.runType == "train-test":
         model_load_path = model_dir
-        print(f"Loading model from training:", model_load_path)
+        print(f"Loading model from training: {model_load_path}")
+
     elif args.runType == "test-only":
-        if args.isScaling == 1:
-            Scaling = "Scaling"
-            if args.SpecificModelTest is not None:
-                model_load_path = args.SpecificModelTest
-                print(f"Loading specific model for testing:", model_load_path)
-                scaler_path = os.path.join(os.path.dirname(model_load_path), "scaler.pkl")
-            else:
-                model_load_path = f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}_Nov27"
-                print(f"Loading model for testing:", model_load_path)
-                scaler_path = os.path.join(os.path.dirname(model_load_path), "scaler.pkl")
-            if not os.path.exists(scaler_path):
-                print(f"Error: Scaler file not found at {scaler_path}. Please check!")
-                exit(1)
-            scaler = joblib.load(scaler_path)
-            features_scaled = scaler.transform(features)
-            for i, name in enumerate(feature_names):
-                combined_tree[name] = features_scaled[:, i]
-            #combined_tree = {
-            #    "signal": signal_flag.astype(np.int32),
-            #    **{name: features_scaled[:, i] for i, name in enumerate(feature_names)}
-            #}
-        if args.isScaling == 0:
-            Scaling = "NoScaling"
-            if args.SpecificModelTest is not None:
-                model_load_path = args.SpecificModelTest
-                print(f"Loading specific model for testing:", model_load_path)
-            else:
-                model_load_path = f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}_Nov27"
-                print(f"Loading model for testing:", model_load_path)
-    
+        if args.SpecificModelTest is not None:
+            model_load_path = args.SpecificModelTest
+        else:
+            model_load_path = (
+                f"{args.YEAR}/{args.TrainRegion}/Models/"
+                f"Model_{args.Model}_{'Scaling' if args.isScaling else 'NoScaling'}_{BalanceClass}_Nov27"
+            )
+        if not os.path.exists(model_load_path):
+            print(f"Error: Model path does not exist: {model_load_path}")
+            exit(1)
+        print(f"Loading model for testing: {model_load_path}")
+
+    if args.isScaling == 1:
+        scaler_path = os.path.join(os.path.dirname(model_load_path), "scaler.pkl")
+        if not os.path.exists(scaler_path):
+            print(f"Error: Scaler file not found at {scaler_path}")
+            exit(1)
+        scaler = joblib.load(scaler_path)
+        features_scaled = scaler.transform(features_raw)
+
+    else:
+        features_scaled = features_raw.copy()
+
+    combined_tree = {
+        "signal": signal_flag.astype(np.int32),
+        **{name: features_raw[:, i] for i, name in enumerate(feature_names)}
+    }
+
+    X = features_scaled      
+    y = combined_tree[label_name]
+
     n_sig = np.sum(combined_tree["signal"] == 1)
     n_bkg = np.sum(combined_tree["signal"] == 0)
 
     print("Signal events:", n_sig)
     print("Background events:", n_bkg)
-
-    X = np.stack([combined_tree[f] for f in feature_names], axis=1)
-    y = combined_tree[label_name]
 
     model = load_model(model_load_path+"/model.h5")
 
@@ -592,6 +604,9 @@ elif args.runType == "train-test" or args.runType == "test-only":
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=my_bin_edges, var="MY", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=mh_bin_edges, var="MH", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
     plotting(arr_3T, arr_2T, add_bins_=True, bins_=njets_add_bin_edges, var="n_jets_add", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+
+    plotting(arr_3T, arr_2T, add_bins_=False, bins_=None, var="dR1_plot", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+    plotting(arr_3T, arr_2T, add_bins_=False, bins_=None, var="dR2_plot", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
 
     except_cols = ["signal", "MX", "MY", "MH", "Score", "Score_weights", "Event_weights", "Combined_weights", "n_jets_add"]
     for i in range(njets):
