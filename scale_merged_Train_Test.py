@@ -225,6 +225,7 @@ elif args.TrainRegion == "4b":
 if args.TestRegion == "3bHiggsMW":
     common_mask = ((H_mass >= 90) & (H_mass <= 150)) # Note this is different from other regions
     sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
+    bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask
     closure = ["3b_HiggsMW", "2b", "2b_w"]
 elif args.TestRegion == "3btest":
     sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
@@ -234,7 +235,6 @@ elif args.TestRegion == "4btest":
     closure = ["4b", "2b", "2b_w"]
 elif args.TestRegion == None:
     pass
-
 
 sig_idx = np.where(sig_mask)[0]
 bkg_idx = np.where(bkg_mask)[0]
@@ -524,8 +524,7 @@ elif args.runType == "train-test" or args.runType == "test-only":
             model_load_path = args.SpecificModelTest
         else:
             model_load_path = (
-                f"{args.YEAR}/{args.TrainRegion}/Models/"
-                f"Model_{args.Model}_{'Scaling' if args.isScaling else 'NoScaling'}_{BalanceClass}_Nov27"
+                f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{'Scaling' if args.isScaling else 'NoScaling'}_{BalanceClass}_Nov27"
             )
         if not os.path.exists(model_load_path):
             print(f"Error: Model path does not exist: {model_load_path}")
@@ -533,7 +532,8 @@ elif args.runType == "train-test" or args.runType == "test-only":
         print(f"Loading model for testing: {model_load_path}")
 
     if args.isScaling == 1:
-        scaler_path = os.path.join(os.path.dirname(model_load_path), "scaler.pkl")
+        #scaler_path = os.path.join(os.path.dirname(model_load_path), "scaler.pkl")
+        scaler_path = f"{model_load_path}/scaler.pkl"
         if not os.path.exists(scaler_path):
             print(f"Error: Scaler file not found at {scaler_path}")
             exit(1)
