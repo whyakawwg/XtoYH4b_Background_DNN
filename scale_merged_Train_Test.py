@@ -55,18 +55,10 @@ def plot_hist(scores, mask, label, color, linestyle="solid"):
         density=True
     )
 
-def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="reweight", ratio_ylim=(0, 2), label_=["3T", "2T", "2T_w"]):
-
-    if add_bins_:
-        if bins_ is None:
-            raise ValueError("bins_ must be provided when add_bins_ is True")
-        bins = bins_
-    else:
-        bins = np.linspace(np.min(arr_3T[var]), np.max(arr_3T[var]), 51)
-
+def plotting(arr_3T, arr_2T, bins=None, var="MX", suffix="reweight", label_=["3T", "2T", "2T_w"]):
     xlim = [bins[0], bins[-1]]
-
     ROOT.gStyle.SetOptStat(0)
+    ratio_ylim=[0.5, 1.5]
 
     n_bins = len(bins) - 1
     bins_array = array.array('d', bins)
@@ -103,8 +95,8 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     err_ratio_3T_2T_w = ratio_3T_2T_w * np.sqrt((err_3T / np.where(y_3T != 0, y_3T, 1e-8))**2 +
                                                (err_2T_w / np.where(y_2T_w != 0, y_2T_w, 1e-8))**2)
 
-    chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "WW P CHI2/NDF")
-    chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "WW P CHI2/NDF")
+    chi2_3T_2T = hist_3T.Chi2Test(hist_2T, "WW CHI2/NDF")
+    chi2_3T_2T_w = hist_3T.Chi2Test(hist_2T_w, "WW CHI2/NDF")
 
     # bin centers
     edges = np.array(bins)
@@ -153,6 +145,170 @@ def plotting(arr_3T, arr_2T, add_bins_=True, bins_=None, var="MX", suffix="rewei
     hist_2T.Delete()
     hist_2T_w.Delete()
 
+def plot_variable_correlation(df, vars_to_plot, title="Variable Correlation Matrix"): 
+    """ 
+    df: dataframe containing events 
+    vars_to_plot: list of variable names to include 
+    """ 
+    df = pd.DataFrame(df) 
+    vars_available = [v for v in vars_to_plot if v in df.columns]
+
+    corr = df[vars_available].corr()
+
+    plt.figure(figsize=(12,10))
+    sns.heatmap(
+        corr, 
+        xticklabels=vars_to_plot, 
+        yticklabels=vars_to_plot, 
+        annot=False, 
+        cmap='coolwarm', 
+        vmin=-1, 
+        vmax=1, 
+        square=True, 
+        cbar_kws={"shrink": 0.75})
+    plt.title(title)
+    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}_Nov27"
+    os.makedirs(out_dir, exist_ok=True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{title.replace(' ', '_')}.png"), dpi=300)
+    plt.close()
+
+def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
+                binsX=None, binsY=None,
+                suffix="2Dclosure", label_=["4b", "2b_w"]):
+    """
+    Make 2D closure map: (3T) / (2T weighted).
+    """
+
+    if binsX is None:
+        binsX = np.linspace(np.min(arr_3T[varX]), np.max(arr_3T[varX]), 41)
+    if binsY is None:
+        binsY = np.linspace(np.min(arr_3T[varY]), np.max(arr_3T[varY]), 41)
+
+    n_binsX = len(binsX) - 1
+    n_binsY = len(binsY) - 1
+
+    binsX_array = array.array('d', binsX)
+    binsY_array = array.array('d', binsY)
+
+    ROOT.gStyle.SetOptStat(0)
+
+    # 3T true
+    h3T = ROOT.TH2F("h3T", "", n_binsX, binsX_array, n_binsY, binsY_array)
+
+    # 2T weighted (prediction)
+    h2T_w = ROOT.TH2F("h2T_w", "", n_binsX, binsX_array, n_binsY, binsY_array)
+
+    # Fill histograms
+    for i in range(len(arr_3T[varX])):
+        h3T.Fill(arr_3T[varX][i], arr_3T[varY][i], arr_3T["Event_weights"][i])
+
+    for i in range(len(arr_2T[varX])):
+        h2T_w.Fill(arr_2T[varX][i], arr_2T[varY][i], arr_2T["Combined_weights"][i])
+
+    # Convert to numpy for plotting
+    H3 = np.array([[h3T.GetBinContent(ix+1, iy+1)
+                    for iy in range(n_binsY)] for ix in range(n_binsX)])
+    H2 = np.array([[h2T_w.GetBinContent(ix+1, iy+1)
+                    for iy in range(n_binsY)] for ix in range(n_binsX)])
+
+    # ratio with zero protection
+    #ratio = np.divide(H3, H2, out=np.zeros_like(H3), where=H2 > 0)
+    ratio = np.divide(H3, H2, out=np.full_like(H3, np.nan), where=H2 > 0)
+    ratio_abs = np.abs(ratio - 1)
+
+    # PLOT
+    plt.figure(figsize=(12,10))
+
+    cmap = plt.get_cmap("Reds").copy()
+    cmap.set_bad(color="gray")
+
+    plt.imshow(
+        ratio_abs.T,
+        origin="lower",
+        aspect="auto",
+        extent=[binsX[0], binsX[-1], binsY[0], binsY[-1]],
+        cmap=cmap,
+        vmin=0,
+        vmax=0.5
+    )
+
+
+    cbar = plt.colorbar()
+    cbar.set_label(f"{label_[0]} / {label_[1]}")
+
+    plt.xlabel(varX)
+    plt.ylabel(varY)
+    plt.title(f"2D Closure: {varX} vs {varY}")
+
+    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}_Nov27/2D_maps"
+    os.makedirs(out_dir, exist_ok=True)
+
+    plt.savefig(f"{out_dir}/{suffix}.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{out_dir}/{suffix}.pdf", bbox_inches="tight")
+    plt.close()
+
+    h3T.Delete()
+    h2T_w.Delete()
+
+def build_binning_map(njets):
+    bin_edges      = np.linspace(0, 1, 51)
+    mx_bin_edges   = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,
+                               450,500,550,600,650,700,750,800,850,900,950,1000,
+                               1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
+                               2750,3000,3500,4000])
+    my_bin_edges   = np.linspace(0, 1000, 51)
+    mh_bin_edges   = np.linspace(0, 300, 51)
+    jet_mass_bin_edges = np.linspace(0, 100, 51)
+    njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
+    eta_bin_edges  = np.linspace(-5, 5, 51)
+    phi_bin_edges  = np.linspace(-3.2, 3.2, 51)
+    HT_bin_edges   = np.linspace(0, 2000, 51)
+    dr_bin_edges   = np.linspace(0, 6.3, 51)
+    pt_bin_edges   = np.linspace(0, 1000, 51)
+
+    bin_map = {
+        "MX": mx_bin_edges,
+        "MY": my_bin_edges,
+        "MH": mh_bin_edges,
+        "Score": bin_edges,
+        "n_jets_add": njets_add_bin_edges,
+        "HT_additional": HT_bin_edges,
+        "HT_4j": HT_bin_edges,
+        "dR1_plot": dr_bin_edges,
+        "dR2_plot": dr_bin_edges,
+    }
+
+    # jet AK4 vars
+    for i in range(1, njets + 1):
+        bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
+        bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
+        bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
+        bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
+
+    # Higgs candidates
+    for v in ["pt", "eta", "phi"]:
+        edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
+        bin_map[f"Hcand_1_{v}"] = edges
+        bin_map[f"Hcand_2_{v}"] = edges
+
+    # H1/H2 deta/dphi/dR
+    for h in ["H1", "H2"]:
+        bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
+        bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
+        bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
+
+    # H1H2 system
+    bin_map["H1H2_pt"]   = pt_bin_edges
+    bin_map["H1H2_eta"]  = eta_bin_edges
+    bin_map["H1H2_phi"]  = phi_bin_edges
+    bin_map["H1H2_deta"] = eta_bin_edges
+    bin_map["H1H2_dphi"] = phi_bin_edges
+    bin_map["H1H2_dR"]   = dr_bin_edges
+
+    return bin_map
+
+binning_map = build_binning_map(njets=4)
 
 if args.runType == "train-test":
     if args.TestRegion is None:
@@ -207,8 +363,9 @@ wp3 = tree_arr["JetAK4_btag_B_WP_3"]
 wp4 = tree_arr["JetAK4_btag_B_WP_4"]
 
 H_mass = tree_arr["Hcand_mass"]
-common_mask = ((H_mass < 90) | (H_mass > 150)) 
-bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask
+min_mask = (H_mass > 50)
+common_mask = ((H_mass < 90) | (H_mass > 150)) & min_mask
+bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask & min_mask
 
 if args.TrainRegion == "3b":
     sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
@@ -217,21 +374,21 @@ if args.TrainRegion == "3b":
         exit()
 
 elif args.TrainRegion == "4b":
-    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
+    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask 
     if args.TestRegion == "3btest" or args.TestRegion == "3bHiggsMW":
         print("Error: If training region is 4b, the test region can only be 4btest. Please check!")
         exit()
 
 if args.TestRegion == "3bHiggsMW":
     common_mask = ((H_mass >= 90) & (H_mass <= 150)) # Note this is different from other regions
-    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
-    bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask
-    closure = ["3b_HiggsMW", "2b", "2b_w"]
+    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask & min_mask
+    bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask & min_mask
+    closure = [r"3b_{Higgs\ MW}", "2b", "2b_w"]
 elif args.TestRegion == "3btest":
-    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
+    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask 
     closure = ["3b", "2b", "2b_w"]
 elif args.TestRegion == "4btest":
-    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask
+    sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask 
     closure = ["4b", "2b", "2b_w"]
 elif args.TestRegion == None:
     pass
@@ -592,28 +749,47 @@ elif args.runType == "train-test" or args.runType == "test-only":
         arr_2T[k] = v[mask_2T]
 
     bin_edges = np.linspace(0, 1, 51)
-    mx_bin_edges = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,2750,3000,3500,4000,4500])
+    mx_bin_edges = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,2750,3000,3500,4000])
     my_bin_edges = np.linspace(0,1000,51)
     mh_bin_edges = np.linspace(0,300,51)
     jet_mass_bin_edges = np.linspace(0, 100, 51)
     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
+    eta_bin_edges = np.linspace(-5, 5, 51)
+    phi_bin_edges = np.linspace(-3.2, 3.2, 51)
+    pt_bin_edges = np.linspace(0, 1000, 51)
+
+    HT_bin_edges = np.linspace(0, 2000, 51)
+    dr_bin_edges = np.linspace(0, 6.3, 51) 
     suff = "reweight"
 
-    plotting(arr_3T, arr_2T, add_bins_=True, bins_=bin_edges, var="Score", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
-    plotting(arr_3T, arr_2T, add_bins_=True, bins_=mx_bin_edges, var="MX", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
-    plotting(arr_3T, arr_2T, add_bins_=True, bins_=my_bin_edges, var="MY", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
-    plotting(arr_3T, arr_2T, add_bins_=True, bins_=mh_bin_edges, var="MH", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
-    plotting(arr_3T, arr_2T, add_bins_=True, bins_=njets_add_bin_edges, var="n_jets_add", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+    vars_all = ["MX", "MY", "MH", "Score", "n_jets_add", "HT_additional", "dR1_plot", "dR2_plot", 
+                "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4", 
+                "JetAK4_eta_1", "JetAK4_eta_2", "JetAK4_eta_3", "JetAK4_eta_4", 
+                "JetAK4_phi_1", "JetAK4_phi_2", "JetAK4_phi_3", "JetAK4_phi_4", 
+                "JetAK4_mass_1", "JetAK4_mass_2", "JetAK4_mass_3", "JetAK4_mass_4",
+                #"JetAK4_add_pt", "JetAK4_add_eta", "JetAK4_add_phi", "JetAK4_add_mass", 
+                "Hcand_1_pt", "Hcand_1_eta", "Hcand_1_phi", # "Hcand_1_mass",
+                "Hcand_2_pt", "Hcand_2_eta", "Hcand_2_phi", # "Hcand_2_mass",
+                "H1_b1b2_deta", "H1_b1b2_dphi", "H1_b1b2_dR",
+                "H2_b1b2_deta", "H2_b1b2_dphi", "H2_b1b2_dR",
+                "H1H2_pt", "H1H2_eta", "H1H2_phi", 
+                "H1H2_deta", "H1H2_dphi", "H1H2_dR",
+                "HT_4j"]
+    plot_variable_correlation(arr_3T, vars_all, title=f"{args.TrainRegion} Variable Correlations")
+    plot_variable_correlation(arr_2T, vars_all, title=f"{args.TrainRegion} 2b Predicted Variable Correlations")
 
-    plotting(arr_3T, arr_2T, add_bins_=False, bins_=None, var="dR1_plot", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
-    plotting(arr_3T, arr_2T, add_bins_=False, bins_=None, var="dR2_plot", suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
 
-    except_cols = ["signal", "MX", "MY", "MH", "Score", "Score_weights", "Event_weights", "Combined_weights", "n_jets_add"]
-    for i in range(njets):
-        except_cols.append(f"JetAK4_mass_{i+1}")
-        col = f"JetAK4_mass_{i+1}"
-        plotting(arr_3T, arr_2T, add_bins_=True, bins_=jet_mass_bin_edges,var=col, suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)
+    vars_to_plot = [v for v in vars_all if v in arr_3T and v in binning_map]
 
-    for col in combined_tree.keys():
-        if col not in except_cols:
-            plotting(arr_3T, arr_2T, add_bins_=False, bins_=None, var=col, suffix=suff, ratio_ylim=[0.5, 1.5], label_=closure)    
+    for var in vars_to_plot:
+        plotting(arr_3T, arr_2T, bins=binning_map[var], var=var, suffix=suff, label_=closure)
+#        if var != "MX":
+#            plotting_2D(
+#                arr_3T, arr_2T,
+#                varX="MX",
+#                varY=var,
+#                binsX=binning_map["MX"],
+#                binsY=binning_map[var],
+#                suffix=f"MX_vs_{var}"
+#            )
+
