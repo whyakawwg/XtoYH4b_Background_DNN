@@ -141,9 +141,9 @@ def plotting(arr_3T, arr_2T, bins=None, var="MX", suffix="reweight", label_=["3T
     plt.savefig(f"{out_dir}/{var}_{suffix}.pdf", bbox_inches="tight")
     plt.close()
 
-    hist_3T.Delete()
-    hist_2T.Delete()
-    hist_2T_w.Delete()
+    hist_3T.saveAs(f"{out_dir}/HistogramRoot/{var}_{suffix}_hist_3T.root")
+    hist_2T.saveAs(f"{out_dir}/HistogramRoot/{var}_{suffix}_hist_2T.root")
+    hist_2T_w.saveAs(f"{out_dir}/HistogramRoot/{var}_{suffix}_hist_2T_w.root")
 
 def plot_variable_correlation(df, vars_to_plot, title="Variable Correlation Matrix"): 
     """ 
@@ -331,6 +331,8 @@ if args.SpecificModelTest is not None:
     elif args.TestRegion is None:
         print("Error: For test-only mode with SpecificModelTest, TestRegion must be specified. Please check!") 
         exit(1)
+
+
 # input_file = uproot.open(f"/data/dust/user/chatterj/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/Tree_Data_Parking.root")
 input_file = uproot.open(f"/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root")
 
@@ -363,7 +365,7 @@ wp3 = tree_arr["JetAK4_btag_B_WP_3"]
 wp4 = tree_arr["JetAK4_btag_B_WP_4"]
 
 H_mass = tree_arr["Hcand_mass"]
-min_mask = (H_mass > 50)
+min_mask = (H_mass > 50) & (H_mass < 300)
 common_mask = ((H_mass < 90) | (H_mass > 150)) & min_mask
 bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask & min_mask
 
@@ -546,14 +548,16 @@ if args.runType == "train-test" or args.runType == "train-only":
         X_test  = scaler.transform(X_test)
 
         # ALSO update combined_tree for later closure plotting
-        full_scaled = scaler.transform(features)
-        for i, name in enumerate(feature_names):
-            combined_tree[name] = full_scaled[:, i]
+        #full_scaled = scaler.transform(features)
+        #for i, name in enumerate(feature_names):
+        #    combined_tree[name] = full_scaled[:, i]
 
         # Save scaler
         save_dir = model_dir
         os.makedirs(save_dir, exist_ok=True)
         joblib.dump(scaler, f"{save_dir}/scaler.pkl")
+        
+        full_scaled = scaler.transform(features)
 
         corr_matrix = np.corrcoef(full_scaled, rowvar=False)
 
@@ -672,6 +676,16 @@ if args.runType == "train-only":
 
 elif args.runType == "train-test" or args.runType == "test-only":
     features_raw = features.copy()
+
+#######################
+    current_signal = combined_tree["signal"].astype(np.int32)
+    if args.isMC == 1 and "Event_weight" in combined_tree:
+        current_weights = combined_tree["Event_weight"]
+    else:
+        current_weights = np.ones(len(features_raw), dtype=float)
+########################
+
+
     if args.runType == "train-test":
         model_load_path = model_dir
         print(f"Loading model from training: {model_load_path}")
@@ -700,16 +714,26 @@ elif args.runType == "train-test" or args.runType == "test-only":
     else:
         features_scaled = features_raw.copy()
 
+    #combined_tree = {
+    #    "signal": signal_flag.astype(np.int32),
+    #    **{name: features_raw[:, i] for i, name in enumerate(feature_names)}
+    #}
+
     combined_tree = {
-        "signal": signal_flag.astype(np.int32),
+        "signal": current_signal,
         **{name: features_raw[:, i] for i, name in enumerate(feature_names)}
     }
 
-    X = features_scaled      
-    y = combined_tree[label_name]
 
-    n_sig = np.sum(combined_tree["signal"] == 1)
-    n_bkg = np.sum(combined_tree["signal"] == 0)
+    X = features_scaled      
+    #y = combined_tree[label_name]
+    y = combined_tree["signal"]
+
+    #n_sig = np.sum(combined_tree["signal"] == 1)
+    #n_bkg = np.sum(combined_tree["signal"] == 0)
+
+    n_sig = np.sum(y == 1)
+    n_bkg = np.sum(y == 0)
 
     print("Signal events:", n_sig)
     print("Background events:", n_bkg)
@@ -734,8 +758,17 @@ elif args.runType == "train-test" or args.runType == "test-only":
     combined_tree["n_jets_add"] = n_jets_add
     combined_tree["HT_additional"] = HT_additional
 
-    combined_tree["dR1_plot"] = dR1_plot
-    combined_tree["dR2_plot"] = dR2_plot
+    #combined_tree["dR1_plot"] = dR1_plot
+    #combined_tree["dR2_plot"] = dR2_plot
+
+    if len(dR1_plot) != len(score):
+        print("Warning: dR1_plot length mismatch. Using NaN.")
+        combined_tree["dR1_plot"] = np.full(len(score), np.nan)
+        combined_tree["dR2_plot"] = np.full(len(score), np.nan)
+    else:
+        combined_tree["dR1_plot"] = dR1_plot
+        combined_tree["dR2_plot"] = dR2_plot
+
 
     # 3T and 2T below are not true closure we are looking for, it's just names at my first code
     # for true closure please carefully see 'sig_mask' and 'bkg_mask' and remember to change the label at 'closure' list
