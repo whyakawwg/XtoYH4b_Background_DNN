@@ -634,62 +634,6 @@ def get_chi2_root_method(h_data, h_nom, h_up, h_dn):
     
     return chi2
 
-# def get_hist_with_total_error(file, var_name):
-#     # Load Hists
-#     h_nom = file.Get(f"{var_name}_hist_2b_w_mean")
-#     h_up  = file.Get(f"{var_name}_hist_2b_w_sys_up")
-#     h_dn  = file.Get(f"{var_name}_hist_2b_w_sys_down")
-#     h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
-#     h_2T  = file.Get(f"{var_name}_hist_2b_mean")
-
-#     if normalize:
-#         if h_3T.Integral() > 0:
-#             h_3T.Scale(1.0 / h_3T.Integral())
-
-#         if h_2T.Integral() > 0:
-#             h_2T.Scale(1.0 / h_2T.Integral())
-
-#         if h_nom.Integral() > 0:
-#             scale_factor = 1.0 / h_nom.Integral()
-
-#             h_nom.Scale(scale_factor)
-#             h_up.Scale(scale_factor)
-#             h_dn.Scale(scale_factor)
-
-#     chi2, ndf = calculate_chi2(h_3T, h_nom, h_up, h_dn)
-#     chi2_ndf_func = chi2 / ndf if ndf > 0 else 0
-
-#     chi2_ndf_root = get_chi2_root_method(h_3T, h_nom, h_up, h_dn)
-
-#     chi2_ndf_without = h_3T.Chi2Test(h_nom, "WW CHI2/NDF")
-#     result_line = (f"{var_name}: Chi2/NDF (w/ total err) = {chi2_ndf_func:.3f} | "
-#                      f"Chi2/NDF (ROOT method) = {chi2_ndf_root:.3f} | "
-#                         f"Chi2/NDF (w/o sys err) = {chi2_ndf_without:.3f}")
-    
-#     f_log1.write(result_line + "\n") # Write to file
-
-#     chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
-
-#     # Extract Bin Contents (y)
-#     n = h_nom.GetNbinsX()
-#     y_nom = np.array([h_nom.GetBinContent(i) for i in range(1, n+1)])
-#     y_up  = np.array([h_up.GetBinContent(i)  for i in range(1, n+1)])
-#     y_dn  = np.array([h_dn.GetBinContent(i)  for i in range(1, n+1)])
-#     y_3T = np.array([h_3T.GetBinContent(i)  for i in range(1, n+1)])
-#     y_2T = np.array([h_2T.GetBinContent(i)  for i in range(1, n+1)])
-    
-#     edges = np.array([h_nom.GetBinLowEdge(i) for i in range(1, n+2)])
-    
-#     err_stat = np.array([h_nom.GetBinError(i) for i in range(1, n+1)])
-    
-#     err_sys_up   = np.abs(y_up - y_nom)
-#     err_sys_down = np.abs(y_dn - y_nom)
-
-#     err_tot_up   = np.sqrt(err_stat**2 + err_sys_up**2)
-#     err_tot_down = np.sqrt(err_stat**2 + err_sys_down**2)
-
-#     return edges, y_nom, y_3T, y_2T, err_tot_up, err_tot_down, scale_factor, chi2_ndf_func, chi2_2b, err_stat, err_sys_up, err_sys_down
-
 def get_fold_hists(file, var_name, n_folds, scale_factor=1.0):
     """Helper to load individual fold histograms"""
     fold_data = []
@@ -815,7 +759,7 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True):
             
             y_mean *= scale_factor
             y_sys  *= scale_factor
-########## Need to check! stat error
+
     err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
     err_tot = np.sqrt(err_stat**2 + y_sys**2)
 
@@ -835,39 +779,3 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True):
 
 
     return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, y_sys
-
-
-    # chi2, ndf = calculate_chi2(h_3T, h_nom, h_up, h_dn)
-    # chi2_ndf_func = chi2 / ndf if ndf > 0 else 0
-
-    # chi2_ndf_root = get_chi2_root_method(h_3T, h_nom, h_up, h_dn)
-
-    # chi2_ndf_without = h_3T.Chi2Test(h_nom, "WW CHI2/NDF")
-    # result_line = (f"{var_name}: Chi2/NDF (w/ total err) = {chi2_ndf_func:.3f} | "
-    #                  f"Chi2/NDF (ROOT method) = {chi2_ndf_root:.3f} | "
-    #                     f"Chi2/NDF (w/o sys err) = {chi2_ndf_without:.3f}")
-    
-    # f_log1.write(result_line + "\n") # Write to file
-
-    # chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
-
-    # # Extract Bin Contents (y)
-    # n = h_nom.GetNbinsX()
-    # y_nom = np.array([h_nom.GetBinContent(i) for i in range(1, n+1)])
-    # y_up  = np.array([h_up.GetBinContent(i)  for i in range(1, n+1)])
-    # y_dn  = np.array([h_dn.GetBinContent(i)  for i in range(1, n+1)])
-    # y_3T = np.array([h_3T.GetBinContent(i)  for i in range(1, n+1)])
-    # y_2T = np.array([h_2T.GetBinContent(i)  for i in range(1, n+1)])
-    
-    # edges = np.array([h_nom.GetBinLowEdge(i) for i in range(1, n+2)])
-    
-    # err_stat = np.array([h_nom.GetBinError(i) for i in range(1, n+1)])
-    
-    # err_sys_up   = np.abs(y_up - y_nom)
-    # err_sys_down = np.abs(y_dn - y_nom)
-
-    # err_tot_up   = np.sqrt(err_stat**2 + err_sys_up**2)
-    # err_tot_down = np.sqrt(err_stat**2 + err_sys_down**2)
-
-    # return edges, y_nom, y_3T, y_2T, err_tot_up, err_tot_down, scale_factor, chi2_ndf_func, chi2_2b, err_stat, err_sys_up, err_sys_down
-
