@@ -1,6 +1,8 @@
 #!/bin/bash
 
-special_name="5fold"
+n_folds=10
+
+special_name="10fold_dec21"
 
 run_type="test-only" # Change the run type: "train-test", "train-only", "test-only"
 
@@ -12,9 +14,9 @@ input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_${special_name}"
 
 output_dir="${input_dir}/${test_region}_Quantiles_Evaluation"
 
-script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold5_evaluation.py"
+script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_evaluation.py"
 
-plot_script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/plot_5fold.py"
+plot_script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/plot_fold.py"
 
 CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
 
@@ -27,7 +29,8 @@ cp "$plot_script_dir" "$output_dir"
 
 declare -A jobs
 
-jobs["Evaluation_${train_region}vs2b_${special_name}"]="python3 fold5_evaluation.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region}"
+jobs["Evaluation_${train_region}vs2b_${special_name}"]="python3 fold_evaluation.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}"
+
 
 master_submit="$output_job_dir/condor_submit_${special_name}.sh"
 : > "$master_submit"
@@ -44,6 +47,7 @@ eval \`scramv1 runtime -sh\`
 
 cd $output_dir
 ${jobs[$name]}
+python3 plot_fold.py
 EOF
     chmod +x "$exe_file"
 

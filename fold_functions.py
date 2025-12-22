@@ -1,48 +1,14 @@
+# fold_functions.py
 import uproot
 import numpy as np
 import vector
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-from tensorflow.keras import Input, Model
-from tensorflow.keras.layers import Dense, Flatten
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.models import load_model
-from tensorflow.keras.layers import BatchNormalization, Dropout
-from tensorflow.keras.callbacks import EarlyStopping
-import xgboost as xgb
-from sklearn.metrics import classification_report, roc_auc_score, roc_curve, auc
-from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 import seaborn as sns
 import ROOT
 import pandas as pd
 import mplhep as hep
 import array
-import argparse
 import os
-import joblib
-import warnings
-warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
-ROOT.gErrorIgnoreLevel = ROOT.kWarning
-
-parser = argparse.ArgumentParser(description="")
-
-parser.add_argument('--YEAR', default="2024", type=str, help="Which era?")
-parser.add_argument('--isScaling', default=1, type=int, help = "Standard Scaling")
-parser.add_argument('--isBalanceClass', default=1, type=int, help = "Balance class?")
-parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
-parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
-parser.add_argument('--runType', default="train-test", choices=["train-test", "train-only", "test-only"], type=str, help = "By default, train-test. Other options: train-only, test-only.")
-parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'. Even test-only, need to specify train region for the model.")
-parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW' or None if train-only.")
-parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
-parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
-parser.add_argument('--foldN', default=0, type=int)
-
-args = parser.parse_args()
-
-isHcand_index_available = False
 
 def plot_hist(scores, mask, label, color, linestyle="solid"):
     """Utility to draw one DNN histogram."""
@@ -60,7 +26,7 @@ def plot_hist(scores, mask, label, color, linestyle="solid"):
         density=True
     )
 
-def plotting(arr_3T, arr_2T, bins=None, var="MX", suffix="reweight", label_=["3T", "2T", "2T_w"]):
+def plotting(arr_3T, arr_2T, bins=None, var="MX", suffix="reweight", label_=["3T", "2T", "2T_w"], args=None):
     xlim = [bins[0], bins[-1]]
     ROOT.gStyle.SetOptStat(0)
     ratio_ylim=[0.5, 1.5]
@@ -162,7 +128,7 @@ def plotting(arr_3T, arr_2T, bins=None, var="MX", suffix="reweight", label_=["3T
     hist_2T.Delete()
     hist_2T_w.Delete()
 
-def plot_variable_correlation(df, vars_to_plot, title="Variable Correlation Matrix"): 
+def plot_variable_correlation(df, vars_to_plot, title="Variable Correlation Matrix", args=None): 
     """ 
     df: dataframe containing events 
     vars_to_plot: list of variable names to include 
@@ -192,7 +158,7 @@ def plot_variable_correlation(df, vars_to_plot, title="Variable Correlation Matr
 
 def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
                 binsX=None, binsY=None,
-                suffix="2Dclosure", label_=["4b", "2b_w"]):
+                suffix="2Dclosure", label_=["4b", "2b_w"], args=None):
     """
     Make 2D closure map: (3T) / (2T weighted).
     """
@@ -210,10 +176,10 @@ def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
 
     ROOT.gStyle.SetOptStat(0)
 
-    # 3T true
+    # 3T
     h3T = ROOT.TH2F("h3T", "", n_binsX, binsX_array, n_binsY, binsY_array)
 
-    # 2T weighted (prediction)
+    # 2T weighted 
     h2T_w = ROOT.TH2F("h2T_w", "", n_binsX, binsX_array, n_binsY, binsY_array)
 
     # Fill histograms
@@ -223,13 +189,13 @@ def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
     for i in range(len(arr_2T[varX])):
         h2T_w.Fill(arr_2T[varX][i], arr_2T[varY][i], arr_2T["Combined_weights"][i])
 
-    # Convert to numpy for plotting
+    # Convert to numpy
     H3 = np.array([[h3T.GetBinContent(ix+1, iy+1)
                     for iy in range(n_binsY)] for ix in range(n_binsX)])
     H2 = np.array([[h2T_w.GetBinContent(ix+1, iy+1)
                     for iy in range(n_binsY)] for ix in range(n_binsX)])
 
-    # ratio
+    # ratio 
     ratio = np.divide(H3, H2, out=np.full_like(H3, np.nan), where=H2 > 0)
     ratio_abs = np.abs(ratio - 1)
 
@@ -367,7 +333,7 @@ def get_10fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/spl
 
     return train_files, test_files
 
-def processing(file_list):
+def processing(file_list, args=None):
     """
     Process data from root files
     """
@@ -388,7 +354,6 @@ def processing(file_list):
             'HT_4j',
             'njets_add', 'HT_add',
             'Hcand_mass', 'Ycand_mass']
-
 
     if args.runType == "train-only":
         tree_arr = uproot.concatenate(
@@ -483,6 +448,8 @@ def processing(file_list):
     dR1_arr = np.full(n_events, np.nan)
     dR2_arr = np.full(n_events, np.nan)
 
+    isHcand_index_available = False # From training script
+
     if isHcand_index_available:
 
         Hcand_index = np.stack([combined_tree[col] for col in Hcand_index_cols], axis=1)
@@ -532,6 +499,7 @@ def processing(file_list):
     dR1_plot = dR1_arr.copy()
     dR2_plot = dR2_arr.copy()
 
+
     if args.isMC == 1:
         event_weights = combined_tree["Event_weight"]
         drop_cols = ["Event_weight"]
@@ -557,7 +525,6 @@ def processing(file_list):
 
     mx = (jets[:, 0] + jets[:, 1] + jets[:, 2] + jets[:, 3]).mass
 
-    # 3. Pack everything into a dictionary
     if args.runType == "test-only":
         aux_data = {
             "jets": jets,             
@@ -577,7 +544,7 @@ def processing(file_list):
 
     return feature_names, features, combined_tree, aux_data
 
-def plot_training_results(history, plot_dir):
+def plot_training_results(history, plot_dir, args=None):
     history_dict = history.history
     epochs = range(1, len(history_dict['loss']) + 1)
 
@@ -610,363 +577,297 @@ def plot_training_results(history, plot_dir):
     plt.savefig(os.path.join(plot_dir, f"{args.Model}_Training_Validation_AUC.png"), dpi=300)
     plt.close()
 
+def fast_fill(hist, data, weights):
+    """
+    Helper function to speed up ROOT histogram filling using FillN.
+    Converts numpy arrays to contiguous float64 for C++ compatibility.
+    """
+    if len(data) == 0: return
+    
+    d_arr = np.ascontiguousarray(data, dtype=np.float64)
+    w_arr = np.ascontiguousarray(weights, dtype=np.float64)
+    
+    hist.FillN(len(d_arr), d_arr, w_arr)
 
-binning_map = build_binning_map(njets=4)
+def calculate_chi2(h_obs, h_exp, h_exp_up, h_exp_dn):
+    chi2 = 0.0
+    ndf = 0
+    
+    for i in range(1, h_obs.GetNbinsX() + 1):
+        obs = h_obs.GetBinContent(i)
+        exp = h_exp.GetBinContent(i)
+        if obs == 0 and exp == 0: continue 
+            
+        sigma_data = h_obs.GetBinError(i)
+        sigma_model_stat = h_exp.GetBinError(i)
 
-if args.runType == "train-test":
-    if args.TestRegion is None:
-        print("Error: For train-test mode, both TrainRegion and TestRegion must be specified. Please check!")
-        exit(1)
-
-if args.runType == "train-only":
-    if args.TestRegion is not None:
-        args.TestRegion = None
-        print("Warning: For train-only mode, TestRegion will be ignored.")
-
-if args.runType == "test-only":
-    if args.TestRegion is None:
-        print("Error: For test-only mode, TestRegion must be specified. Please check!")
-        exit(1)
-if args.SpecificModelTest is not None:
-    if args.runType != "test-only":
-        print("Warning: SpecificModelTest is only used in test-only mode. Ignoring it for other modes.")
-        args.SpecificModelTest = None
-    elif args.TestRegion is None:
-        print("Error: For test-only mode with SpecificModelTest, TestRegion must be specified. Please check!") 
-        exit(1)
-
-if args.YEAR == "2022":
-    data_lumi = 7.98
-elif args.YEAR == "2022EE":
-    data_lumi = 26.67
-elif args.YEAR == "2023":
-    data_lumi = 11.24
-elif args.YEAR == "2023BPiX":
-    data_lumi = 9.45
-elif args.YEAR == "2024":
-    data_lumi = 108.96
-else:
-    print("Please select a valid YEAR: '2022', '2022EE', '2023', '2023BPiX', '2024'")
-    exit(1)
-
-if args.isScaling == 1:
-    Scaling = "Scaling"
-else:
-    Scaling = "NoScaling"
-
-if args.isBalanceClass == 1:
-    BalanceClass = "BalanceClass"
-else:
-    BalanceClass = "NoBalanceClass"
-
-
-foldN = args.foldN
-
-if args.runType == "train-test" or args.runType == "train-only":
-    plot_dir =  f"{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
-    model_dir = f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
-
-    os.makedirs(plot_dir, exist_ok=True)
-    os.makedirs(model_dir, exist_ok=True)
-
-    print("Plot dir:", plot_dir)
-    print("Model dir:", model_dir)
-
-    train_list, test_list = get_10fold_filelists(foldN)
-    feature_names_train, features_train, combined_tree_train, aux_data_train = processing(train_list)
-    feature_names_test, features_test, combined_tree_test, aux_data_test = processing(test_list)
-    label_name = "signal"
-    X_train = np.stack([combined_tree_train[f] for f in feature_names_train], axis=1)
-    y_train = combined_tree_train[label_name]
-
-    X_test = np.stack([combined_tree_test[f] for f in feature_names_test], axis=1)
-    y_test = combined_tree_test[label_name]    
-
-    if args.isScaling == 1:
-        Scaling = "Scaling"
-
-        scaler = StandardScaler()
-        scaler.fit(X_train)
-
-        # Scale both train and test
-        X_train = scaler.transform(X_train)
-        X_test  = scaler.transform(X_test)
-
-        X_train, y_train = shuffle(X_train, y_train, random_state=42)
-
-        # Save scaler
-        save_dir = model_dir
-        os.makedirs(save_dir, exist_ok=True)
-        joblib.dump(scaler, f"{save_dir}/scaler.pkl")
-        
-        full_scaled = scaler.transform(features_train)
-
-        corr_matrix = np.corrcoef(full_scaled, rowvar=False)
-
-    else:
-        Scaling = "NoScaling"
-        corr_matrix = np.corrcoef(features_train, rowvar=False)
-
-    if args.Model == "DNN":
-
-        inputs = Input(shape=(len(X_train[0]),))
-        x = Flatten()(inputs)
-        x = Dense(128, activation='relu')(x)
-        x = BatchNormalization()(x)
-        x = Dropout(0.2)(x)
-
-        x = Dense(64, activation='relu')(x)
-        x = BatchNormalization()(x)
-        x = Dropout(0.2)(x)
-
-        outputs = Dense(1, activation='sigmoid')(x)
-
-        model = Model(inputs=inputs, outputs=outputs)
-
-        model.compile(optimizer=Adam(learning_rate=0.001),
-                    loss='binary_crossentropy',
-                    metrics=['accuracy', tf.keras.metrics.AUC()])
-
-        early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True, verbose=1)  
-
-        history = model.fit(X_train, y_train, 
-              epochs=100, 
-              batch_size=512, 
-              validation_split=0.1, 
-              callbacks=[early_stop],
-              verbose=1)
-
-        plot_training_results(history, plot_dir)
-
-        model.save(model_dir+"/model.h5")
-
-        y_score = model.predict(X_test)
-        y_pred = (y_score > 0.5).astype(int)
-
-        score_train = model.predict(X_train)
-        score_test  = model.predict(X_test)
-
-    elif args.Model == "BDT":
-
-        model = xgb.XGBClassifier(
-            n_estimators=200,
-            max_depth=4,
-            learning_rate=0.1,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            #use_label_encoder=False,
-            eval_metric="logloss"
-        )
-
-        model.fit(X_train, y_train)
-
-        model.save_model(model_dir+"/bdt_model.json")
-
-        y_pred = model.predict(X_test)
-        y_score = model.predict_proba(X_test)[:, 1]
-
-        score_train = model.predict_proba(X_train)[:, 1]
-        score_test  = model.predict_proba(X_test)[:, 1] 
-
-    else:
-        print("This model is unavailable.")
-
-    print("Classification Report:")
-    print(classification_report(y_test, y_pred))
-    print("ROC AUC Score:", roc_auc_score(y_test, y_score))
-
-    plt.figure(figsize=(8, 6))
-
-    # Signal
-    plot_hist(score_train, y_train == 1, "Signal (train)", "r")
-    plot_hist(score_test, y_test == 1, "Signal (test)", "orange", linestyle="dashed")
-    # Background
-    plot_hist(score_train, y_train == 0, "Background (train)", "b")
-    plot_hist(score_test, y_test == 0, "Background (test)", "green", linestyle="dashed")
-
-    plt.xlabel(f"{args.Model} Score")
-    plt.ylabel("Arbitrary units")
-    plt.yscale("log")
-    plt.legend(loc="best", fontsize=10)
-    plt.title(f"{args.Model} Score Distribution")
-    plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, f"{args.Model}_Score_Distribution.png"), dpi=300)
-    plt.close()
-
-    #Plot ROC curve
-    fpr, tpr, _ = roc_curve(y_test, y_score)
-    roc_auc = auc(fpr, tpr)
-
-    plt.figure(figsize=(8, 6))
-    plt.plot(fpr, tpr, color='blue', lw=2, label=f'ROC curve (AUC = {roc_auc:.3f})')
-    plt.plot([0, 1], [0, 1], color='gray', lw=1, linestyle='--', label='Random')
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver Operating Characteristic (ROC)')
-    plt.legend(loc='lower right')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, "ROC_Curve.png"), dpi=300)
-    plt.close()
-
-    # Plot correlation matrix
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(corr_matrix, xticklabels=feature_names_train, yticklabels=feature_names_train, annot=False, cmap='coolwarm', vmin=-1, vmax=1, square=True, cbar_kws={"shrink": 0.75})
-    plt.title("Feature Correlation Matrix")
-    plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, "Feature_Correlation_Matrix.png"), dpi=300)
-    plt.close()
-elif args.runType == "test-only":
-    pass
-
-if args.runType == "train-only":
-    print("Training completed. No testing performed in 'train-only' mode.")
-
-
-elif args.runType == "train-test" or args.runType == "test-only":
-
-    feature_names, features, combined_tree, aux_data = processing(['/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root'])
-
-    features_raw = features.copy()
-  
-    BalanceClass  = aux_data["BalanceClass"]
-    closure       = aux_data["closure"]
-    event_weights = aux_data["event_weights"]
-    MH            = aux_data["MH"]
-    MY            = aux_data["MY"]
-    n_jets_add    = aux_data["n_jets_add"]
-    HT_additional = aux_data["HT_additional"]
-    dR1_plot      = aux_data["dR1_plot"]
-    dR2_plot      = aux_data["dR2_plot"]
-    mx            = aux_data["MX"] 
-
-    current_signal = combined_tree["signal"].astype(np.int32)
-    if args.isMC == 1 and "Event_weight" in combined_tree:
-        current_weights = combined_tree["Event_weight"]
-    else:
-        current_weights = np.ones(len(features_raw), dtype=float)
-
-    if args.runType == "train-test":
-        model_load_path = model_dir
-        print(f"Loading model from training: {model_load_path}")
-
-    elif args.runType == "test-only":
-        if args.SpecificModelTest is not None:
-            model_load_path = args.SpecificModelTest
+        if obs >= exp:
+            sigma_sys = abs(h_exp_up.GetBinContent(i) - exp)
         else:
-            model_load_path = (
-                f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{'Scaling' if args.isScaling else 'NoScaling'}_{BalanceClass}_Nov27/MODEL_{foldN}/"
-            )
-        if not os.path.exists(model_load_path):
-            print(f"Error: Model path does not exist: {model_load_path}")
-            exit(1)
-        print(f"Loading model for testing: {model_load_path}")
+            sigma_sys = abs(h_exp_dn.GetBinContent(i) - exp)
 
-    if args.isScaling == 1:
-        scaler_path = f"{model_load_path}/scaler.pkl"
-        if not os.path.exists(scaler_path):
-            print(f"Error: Scaler file not found at {scaler_path}")
-            exit(1)
-        scaler = joblib.load(scaler_path)
-        features_scaled = scaler.transform(features_raw)
+        total_variance = sigma_data**2 + sigma_model_stat**2 + sigma_sys**2
+        
+        if total_variance > 0:
+            chi2 += (obs - exp)**2 / total_variance
+            ndf += 1
+            
+    return chi2, max(ndf - 1, 1)
 
-    else:
-        features_scaled = features_raw.copy()
+def get_chi2_root_method(h_data, h_nom, h_up, h_dn):
+    h_total_err = h_nom.Clone("h_total_err_for_chi2")
+    
+    n_bins = h_nom.GetNbinsX()
+    
+    for i in range(1, n_bins + 1):
 
-    combined_tree = {
-        "signal": current_signal,
-        **{name: features_raw[:, i] for i, name in enumerate(feature_names)}
-    }
+        sigma_stat = h_nom.GetBinError(i)
+        
+        diff_up = abs(h_up.GetBinContent(i) - h_nom.GetBinContent(i))
+        diff_dn = abs(h_dn.GetBinContent(i) - h_nom.GetBinContent(i))
+        sigma_sys = max(diff_up, diff_dn)
+        
+        sigma_total = np.sqrt(sigma_stat**2 + sigma_sys**2)
+        h_total_err.SetBinError(i, sigma_total)
+        
+    chi2 = h_data.Chi2Test(h_total_err, "WW CHI2/NDF")
+    
+    return chi2
+
+# def get_hist_with_total_error(file, var_name):
+#     # Load Hists
+#     h_nom = file.Get(f"{var_name}_hist_2b_w_mean")
+#     h_up  = file.Get(f"{var_name}_hist_2b_w_sys_up")
+#     h_dn  = file.Get(f"{var_name}_hist_2b_w_sys_down")
+#     h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
+#     h_2T  = file.Get(f"{var_name}_hist_2b_mean")
+
+#     if normalize:
+#         if h_3T.Integral() > 0:
+#             h_3T.Scale(1.0 / h_3T.Integral())
+
+#         if h_2T.Integral() > 0:
+#             h_2T.Scale(1.0 / h_2T.Integral())
+
+#         if h_nom.Integral() > 0:
+#             scale_factor = 1.0 / h_nom.Integral()
+
+#             h_nom.Scale(scale_factor)
+#             h_up.Scale(scale_factor)
+#             h_dn.Scale(scale_factor)
+
+#     chi2, ndf = calculate_chi2(h_3T, h_nom, h_up, h_dn)
+#     chi2_ndf_func = chi2 / ndf if ndf > 0 else 0
+
+#     chi2_ndf_root = get_chi2_root_method(h_3T, h_nom, h_up, h_dn)
+
+#     chi2_ndf_without = h_3T.Chi2Test(h_nom, "WW CHI2/NDF")
+#     result_line = (f"{var_name}: Chi2/NDF (w/ total err) = {chi2_ndf_func:.3f} | "
+#                      f"Chi2/NDF (ROOT method) = {chi2_ndf_root:.3f} | "
+#                         f"Chi2/NDF (w/o sys err) = {chi2_ndf_without:.3f}")
+    
+#     f_log1.write(result_line + "\n") # Write to file
+
+#     chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
+
+#     # Extract Bin Contents (y)
+#     n = h_nom.GetNbinsX()
+#     y_nom = np.array([h_nom.GetBinContent(i) for i in range(1, n+1)])
+#     y_up  = np.array([h_up.GetBinContent(i)  for i in range(1, n+1)])
+#     y_dn  = np.array([h_dn.GetBinContent(i)  for i in range(1, n+1)])
+#     y_3T = np.array([h_3T.GetBinContent(i)  for i in range(1, n+1)])
+#     y_2T = np.array([h_2T.GetBinContent(i)  for i in range(1, n+1)])
+    
+#     edges = np.array([h_nom.GetBinLowEdge(i) for i in range(1, n+2)])
+    
+#     err_stat = np.array([h_nom.GetBinError(i) for i in range(1, n+1)])
+    
+#     err_sys_up   = np.abs(y_up - y_nom)
+#     err_sys_down = np.abs(y_dn - y_nom)
+
+#     err_tot_up   = np.sqrt(err_stat**2 + err_sys_up**2)
+#     err_tot_down = np.sqrt(err_stat**2 + err_sys_down**2)
+
+#     return edges, y_nom, y_3T, y_2T, err_tot_up, err_tot_down, scale_factor, chi2_ndf_func, chi2_2b, err_stat, err_sys_up, err_sys_down
+
+def get_fold_hists(file, var_name, n_folds, scale_factor=1.0):
+    """Helper to load individual fold histograms"""
+    fold_data = []
+
+    for i in range(1, n_folds + 1):
+        h = file.Get(f"{var_name}_hist_2b_fold{i}")
+        if not h:
+            print(f"Warning: Fold {i} not found for {var_name}")
+            continue
+        h.Scale(scale_factor)
+        n = h.GetNbinsX()
+        y = np.array([h.GetBinContent(b) for b in range(1, n+1)])
+        fold_data.append(y)
+    return fold_data
+
+def check_h_nomerror_2b_staterror(file, var_name):
+    h_nom = file.Get(f"{var_name}_hist_2b_w_mean")
+    h_2b  = file.Get(f"{var_name}_hist_2b_mean")
+
+    n = h_nom.GetNbinsX()
+    for i in range(1, n+1):
+        nom_err = h_nom.GetBinError(i)
+        stat_err = h_2b.GetBinError(i)
+        if nom_err < stat_err:
+            print(f"Warning: For {var_name} bin {i}, nom error {nom_err} < 2b stat error {stat_err}")
+        if nom_err == stat_err:
+            print(f"Note: For {var_name} bin {i}, nom error {nom_err} == 2b stat error {stat_err}")
+
+def get_fold_errors(file, var_name, n_folds):
+    """Helper to get statistical errors for each fold histogram"""
+    fold_errors = []
+    ratio_errs = []
+
+    for i in range(1, n_folds + 1):
+        h = file.Get(f"{var_name}_hist_2b_fold{i}")
+        if not h:
+            print(f"Warning: Fold {i} not found for {var_name}")
+            continue
+        n = h.GetNbinsX()
+        errs = np.array([h.GetBinError(b) for b in range(1, n+1)])
+        fold_errors.append(errs)
+        ratio_err = errs / np.where(np.array([h.GetBinContent(b) for b in range(1, n+1)]) > 0,
+                                     np.array([h.GetBinContent(b) for b in range(1, n+1)]),
+                                     1e-10)
+        ratio_errs.append(ratio_err)
+
+    return ratio_errs
+
+def check_4b_2b_errors(file, var_name):
+    h_4b = file.Get(f"{var_name}_hist_4b_mean")
+    h_2b = file.Get(f"{var_name}_hist_2b_mean")
+
+    n = h_4b.GetNbinsX()
+    err_4b = []
+    err_2b = []
+    for i in range(1, n+1):
+        err_4b.append(h_4b.GetBinError(i))
+        err_2b.append(h_2b.GetBinError(i))
+    
+    ratio_err_4b = np.array(err_4b) / np.where(np.array([h_4b.GetBinContent(b) for b in range(1, n+1)]) > 0,
+                                               np.array([h_4b.GetBinContent(b) for b in range(1, n+1)]),
+                                               1e-10)
+    ratio_err_2b = np.array(err_2b) / np.where(np.array([h_2b.GetBinContent(b) for b in range(1, n+1)]) > 0,
+                                               np.array([h_2b.GetBinContent(b) for b in range(1, n+1)]),
+                                               1e-10)
+
+    return ratio_err_4b, ratio_err_2b, n
+
+def calculate_error_from_histograms(file, var_name, n_folds):
+    """
+    Calculate the systematic uncertainty from the spread of fold histograms for each bin. Use the same percentile methods.
+    """
+    fold_ys = get_fold_hists(file, var_name, n_folds)
+    
+    n_bins = len(fold_ys[0]) 
+    
+    sys_sigma = np.zeros(n_bins)
+    mean = np.zeros(n_bins) 
+    
+    for i in range(n_bins):
+        bin_values = [fold[i] for fold in fold_ys]   
+        mean[i] = np.mean(bin_values)
+        q16 = np.percentile(bin_values, 16)
+        q84 = np.percentile(bin_values, 84)
+        sys_sigma[i] = (q84 - q16) / 2.0
+    return mean, sys_sigma
+
+def get_hist_with_total_error(file, var_name, n_folds, normalize=True):
+    h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
+    h_2T  = file.Get(f"{var_name}_hist_2b_mean")
+    n_bins = h_3T.GetNbinsX()
+
+    fold_data = []
+
+    for fold_idx in range(n_folds):
+        h_fold = file.Get(f"{var_name}_hist_2b_fold{fold_idx+1}")
+        if not h_fold:
+            print(f"Warning: Fold {fold_idx+1} not found for {var_name}")
+            continue
+        content = [h_fold.GetBinContent(i) for i in range(1, n_bins + 1)]
+        fold_data.append(content)
+
+    fold_array = np.array(fold_data)
+    y_mean = np.mean(fold_array, axis=0)
+    q16 = np.percentile(fold_array, 16, axis=0)
+    q84 = np.percentile(fold_array, 84, axis=0)
+
+    y_sys = (q84 - q16) / 2.0
+
+    scale_factor = 1.0
+
+    if normalize:
+        if h_3T.Integral() > 0:
+            h_3T.Scale(1.0 / h_3T.Integral())
+
+        if h_2T.Integral() > 0:
+            h_2T.Scale(1.0 / h_2T.Integral())
+
+        total_integral = np.sum(y_mean)
+        
+        if total_integral > 0:
+            scale_factor = 1.0 / total_integral
+            
+            y_mean *= scale_factor
+            y_sys  *= scale_factor
+########## Need to check! stat error
+    err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
+    err_tot = np.sqrt(err_stat**2 + y_sys**2)
+
+    h_total_err_for_chi2 = h_2T.Clone(f"{var_name}_total_err")
+    for i in range(n_bins):
+        bin_idx = i + 1 
+        h_total_err_for_chi2.SetBinContent(bin_idx, y_mean[i])
+        h_total_err_for_chi2.SetBinError(bin_idx, err_tot[i])
+
+    chi2_val = h_3T.Chi2Test(h_total_err_for_chi2, "WW CHI2/NDF")
+    chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
+
+    edges = np.array([h_3T.GetBinLowEdge(i) for i in range(1, n_bins+2)])
+    y_3T = np.array([h_3T.GetBinContent(i) for i in range(1, n_bins+1)])
+    y_2T = np.array([h_2T.GetBinContent(i) for i in range(1, n_bins+1)])
 
 
-    X = features_scaled      
-    y = combined_tree["signal"]
 
-    n_sig = np.sum(y == 1)
-    n_bkg = np.sum(y == 0)
-
-    print("Signal events:", n_sig)
-    print("Background events:", n_bkg)
-
-    model = load_model(model_load_path+"/model.h5")
-
-    score = model.predict(X).ravel()
-
-    score_weights = score / (1 - score + 1e-8) 
-
-    combined_weights = score_weights * current_weights
-
-    combined_tree["MX"] = mx
-    combined_tree["MY"] = MY
-    combined_tree["MH"] = MH
-    combined_tree["Score"] = score
-    combined_tree["Score_weights"] = score_weights
-    combined_tree["Event_weights"] = event_weights
-    combined_tree["Combined_weights"] = combined_weights
-    combined_tree["n_jets_add"] = n_jets_add
-    combined_tree["HT_additional"] = HT_additional
-
-    if len(dR1_plot) != len(score):
-        print("Warning: dR1_plot length mismatch. Using NaN.")
-        combined_tree["dR1_plot"] = np.full(len(score), np.nan)
-        combined_tree["dR2_plot"] = np.full(len(score), np.nan)
-    else:
-        combined_tree["dR1_plot"] = dR1_plot
-        combined_tree["dR2_plot"] = dR2_plot
-
-    # 3T and 2T below are not true closure we are looking for, it's just names at my first code
-    # for true closure please carefully see 'sig_mask' and 'bkg_mask' and remember to change the label at 'closure' list
-    mask_3T = combined_tree["signal"] == 1
-    mask_2T = combined_tree["signal"] == 0
-
-    arr_3T, arr_2T = {}, {}
-
-    for k, v in combined_tree.items():
-        arr_3T[k] = v[mask_3T]
-        arr_2T[k] = v[mask_2T]
-
-    bin_edges = np.linspace(0, 1, 51)
-    mx_bin_edges = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,2750,3000,3500,4000])
-    my_bin_edges = np.linspace(0,1000,51)
-    mh_bin_edges = np.linspace(0,300,51)
-    jet_mass_bin_edges = np.linspace(0, 100, 51)
-    njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
-    eta_bin_edges = np.linspace(-5, 5, 51)
-    phi_bin_edges = np.linspace(-3.2, 3.2, 51)
-    pt_bin_edges = np.linspace(0, 1000, 51)
-
-    HT_bin_edges = np.linspace(0, 2000, 51)
-    dr_bin_edges = np.linspace(0, 6.3, 51) 
-    suff = "reweight"
-
-    vars_all = ["MX", "MY", "MH", "Score", "n_jets_add", "HT_additional", "dR1_plot", "dR2_plot", 
-                "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4", 
-                "JetAK4_eta_1", "JetAK4_eta_2", "JetAK4_eta_3", "JetAK4_eta_4", 
-                "JetAK4_phi_1", "JetAK4_phi_2", "JetAK4_phi_3", "JetAK4_phi_4", 
-                "JetAK4_mass_1", "JetAK4_mass_2", "JetAK4_mass_3", "JetAK4_mass_4",
-                #"JetAK4_add_pt", "JetAK4_add_eta", "JetAK4_add_phi", "JetAK4_add_mass", 
-                "Hcand_1_pt", "Hcand_1_eta", "Hcand_1_phi", # "Hcand_1_mass",
-                "Hcand_2_pt", "Hcand_2_eta", "Hcand_2_phi", # "Hcand_2_mass",
-                "H1_b1b2_deta", "H1_b1b2_dphi", "H1_b1b2_dR",
-                "H2_b1b2_deta", "H2_b1b2_dphi", "H2_b1b2_dR",
-                "H1H2_pt", "H1H2_eta", "H1H2_phi", 
-                "H1H2_deta", "H1H2_dphi", "H1H2_dR",
-                "HT_4j"]
-    plot_variable_correlation(arr_3T, vars_all, title=f"{args.TrainRegion} Variable Correlations")
-    plot_variable_correlation(arr_2T, vars_all, title=f"{args.TrainRegion} 2b Predicted Variable Correlations")
+    return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, y_sys
 
 
-    vars_to_plot = [v for v in vars_all if v in arr_3T and v in binning_map]
+    # chi2, ndf = calculate_chi2(h_3T, h_nom, h_up, h_dn)
+    # chi2_ndf_func = chi2 / ndf if ndf > 0 else 0
 
-    for var in vars_to_plot:
-        plotting(arr_3T, arr_2T, bins=binning_map[var], var=var, suffix=suff, label_=closure)
-#        if var != "MX":
-#            plotting_2D(
-#                arr_3T, arr_2T,
-#                varX="MX",
-#                varY=var,
-#                binsX=binning_map["MX"],
-#                binsY=binning_map[var],
-#                suffix=f"MX_vs_{var}"
-#            )
+    # chi2_ndf_root = get_chi2_root_method(h_3T, h_nom, h_up, h_dn)
+
+    # chi2_ndf_without = h_3T.Chi2Test(h_nom, "WW CHI2/NDF")
+    # result_line = (f"{var_name}: Chi2/NDF (w/ total err) = {chi2_ndf_func:.3f} | "
+    #                  f"Chi2/NDF (ROOT method) = {chi2_ndf_root:.3f} | "
+    #                     f"Chi2/NDF (w/o sys err) = {chi2_ndf_without:.3f}")
+    
+    # f_log1.write(result_line + "\n") # Write to file
+
+    # chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
+
+    # # Extract Bin Contents (y)
+    # n = h_nom.GetNbinsX()
+    # y_nom = np.array([h_nom.GetBinContent(i) for i in range(1, n+1)])
+    # y_up  = np.array([h_up.GetBinContent(i)  for i in range(1, n+1)])
+    # y_dn  = np.array([h_dn.GetBinContent(i)  for i in range(1, n+1)])
+    # y_3T = np.array([h_3T.GetBinContent(i)  for i in range(1, n+1)])
+    # y_2T = np.array([h_2T.GetBinContent(i)  for i in range(1, n+1)])
+    
+    # edges = np.array([h_nom.GetBinLowEdge(i) for i in range(1, n+2)])
+    
+    # err_stat = np.array([h_nom.GetBinError(i) for i in range(1, n+1)])
+    
+    # err_sys_up   = np.abs(y_up - y_nom)
+    # err_sys_down = np.abs(y_dn - y_nom)
+
+    # err_tot_up   = np.sqrt(err_stat**2 + err_sys_up**2)
+    # err_tot_down = np.sqrt(err_stat**2 + err_sys_down**2)
+
+    # return edges, y_nom, y_3T, y_2T, err_tot_up, err_tot_down, scale_factor, chi2_ndf_func, chi2_2b, err_stat, err_sys_up, err_sys_down
 
