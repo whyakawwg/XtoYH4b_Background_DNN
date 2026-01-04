@@ -240,7 +240,7 @@ def build_binning_map(njets):
                                1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
                                2750,3000,3500,4000])
     my_bin_edges   = np.linspace(0, 1000, 51)
-    mh_bin_edges   = np.linspace(0, 300, 61)
+    mh_bin_edges   = np.linspace(0, 300, 51)
     jet_mass_bin_edges = np.linspace(0, 100, 51)
     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
     eta_bin_edges  = np.linspace(-5, 5, 51)
@@ -383,6 +383,9 @@ def processing(file_list, args=None):
     common_mask = ((H_mass < 90) | (H_mass > 150)) & min_mask
     bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask & min_mask
 
+    pt_cut_mask = (tree_arr["JetAK4_pt_1"] > 50) & (tree_arr["JetAK4_pt_2"] > 50) & \
+                  (tree_arr["JetAK4_pt_3"] > 50) & (tree_arr["JetAK4_pt_4"] > 50)
+
     if args.TrainRegion == "3b":
         sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
         if args.TestRegion == "4btest":
@@ -408,6 +411,10 @@ def processing(file_list, args=None):
         closure = ["4b", "2b", "2b_w"]
     elif args.TestRegion == None:
         pass
+
+    common_mask = common_mask & pt_cut_mask
+    sig_mask = sig_mask & pt_cut_mask
+    bkg_mask = bkg_mask & pt_cut_mask
 
     sig_idx = np.where(sig_mask)[0]
     bkg_idx = np.where(bkg_mask)[0]

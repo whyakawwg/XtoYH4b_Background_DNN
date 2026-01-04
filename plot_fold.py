@@ -9,13 +9,31 @@ import ROOT
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
+import argparse
 import os
 
-n_folds = 10
+parser = argparse.ArgumentParser(description="")
+parser.add_argument('--YEAR', default="2024", type=str, help="Which era?")
+parser.add_argument('--isScaling', default=1, type=int, help = "Standard Scaling")
+parser.add_argument('--isBalanceClass', default=1, type=int, help = "Balance class?")
+parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
+parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
+parser.add_argument('--runType', default="train-test", choices=["train-test", "train-only", "test-only"], type=str, help = "By default, train-test. Other options: train-only, test-only.")
+parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'. Even test-only, need to specify train region for the model.")
+parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW' or None if train-only.")
+parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
+parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
+
+parser.add_argument('--Nfold', default=None, type=int, help = "Specify fold number for training or testing.")
+
+args = parser.parse_args()
+
+n_folds = args.Nfold
+year_label = args.YEAR
 
 input_file = "quantiles_Combined_Background_Result.root"
 
-output_dir = "Plots_Evaluation_fold10"
+output_dir = f"Plots_Evaluation_fold{n_folds}"
 os.makedirs(output_dir, exist_ok=True)
 
 log_filename1 = os.path.join(output_dir, "chi2_results.txt")
@@ -25,9 +43,11 @@ log_filename2 = os.path.join(output_dir, "ratio_error.txt")
 normalize = True
 
 data_lumi = 109 
-year_label = 2024
 ratio_ylim = [0.5, 1.5]
-labels = ["4b", "2b", "2b_w"]
+# labels = ["4b", "2b", "2b_w"]
+# labels = ["3b", "2b", "2b_w"]
+labels = [f"{args.TrainRegion}", "2b", "2b_w"]
+
 
 ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
@@ -73,9 +93,9 @@ with open(log_filename1, "w") as f_log1:
 
             hep.cms.label("Preliminary", data=True, lumi=data_lumi, com=13.6, year=year_label, ax=ax)
 
-            hep.histplot(y_4b, bins=edges, ax=ax, color="orange", label="4b")
-            hep.histplot(y_2b, bins=edges, ax=ax, color="red", label="2b")
-            hep.histplot(y_model, bins=edges, ax=ax, color="blue", label="2b_w")
+            hep.histplot(y_4b, bins=edges, ax=ax, color="orange", label=labels[0])
+            hep.histplot(y_2b, bins=edges, ax=ax, color="red", label=labels[1])
+            hep.histplot(y_model, bins=edges, ax=ax, color="blue", label=labels[2])
             
             band_low = y_model - err_tot
             band_high = y_model + err_tot
@@ -139,8 +159,8 @@ with open(log_filename1, "w") as f_log1:
             rel_err_sys   = err_sys / denom
 
             rax.fill_between(edges, r_band_low, r_band_high, step='post', color='gray', alpha=0.3)# , label="Total Uncertainty")
-            rax.errorbar(x_centers, r_raw, fmt='o', color='red', label=rf"4b/2b $\frac{{\chi^2}}{{NDF}}={chi2_2b:.2f}$")
-            rax.errorbar(x_centers, ratio, fmt='o', color='blue', label=rf"4b/2b_w $\frac{{\chi^2}}{{NDF}}={chi2_val:.2f}$")
+            rax.errorbar(x_centers, r_raw, fmt='o', color='red', label=rf"{labels[0]}/{labels[1]} $\frac{{\chi^2}}{{NDF}}={chi2_2b:.2f}$")
+            rax.errorbar(x_centers, ratio, fmt='o', color='blue', label=rf"{labels[0]}/{labels[2]} $\frac{{\chi^2}}{{NDF}}={chi2_val:.2f}$")
             rax.fill_between(edges, r_band_stat_low, r_band_stat_high, step='post', facecolor='none', edgecolor='green', hatch='////', alpha=0.5)# , label="Statistical Uncertainty")
 
             rax.set_ylim(0.5, 1.5)
@@ -151,8 +171,8 @@ with open(log_filename1, "w") as f_log1:
             handles_rax, labels_rax = rax.get_legend_handles_labels()
             ax.legend(handles_ax + handles_rax, labels_ax + labels_rax, loc='best', ncol=1, fontsize='x-small')
 
-            plt.savefig(f"{output_dir}/{var}_evaluation.png", dpi=300, bbox_inches="tight")
-            plt.savefig(f"{output_dir}/{var}_evaluation.pdf", bbox_inches="tight")
+            plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_evaluation.png", dpi=300, bbox_inches="tight")
+            plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_evaluation.pdf", bbox_inches="tight")
             #print(f"  -> Saved plots to {output_dir}")
             plt.close()
 
@@ -196,11 +216,11 @@ with open(log_filename1, "w") as f_log1:
 
                 for i in range(n_bins):
                     f_log2.write(f"Stat errors for {var}:\n")
-                    f_log2.write(f"Stat 4b error: {err_4b[i]}, 2b error: {err_2b[i]}\n")
+                    f_log2.write(f"Stat {labels[0]} error: {err_4b[i]}, {labels[1]} error: {err_2b[i]}\n")
                     for j in range(5):
                         f_log2.write(f"Fold {j+1} bin {i+1} error: {fold_errors_2bw[j][i]}\n")
                         
-                    f_log2.write(f"2b_w nom error: {rel_err_stat[i]}\n")
+                    f_log2.write(f"{labels[2]} nom error: {rel_err_stat[i]}\n")
                     f_log2.write("Systematic error:\n")
                     f_log2.write(f"Sys error from : {rel_err_sys[i]}\n")
                     f_log2.write(f"Sys error from histogram : {rel_sys_errs_hist[i]}\n")
@@ -233,8 +253,8 @@ with open(log_filename1, "w") as f_log1:
                 ax5w.legend(new_handles + handles_rax5w, new_labels + labels_rax5w, loc='best', ncol=1, fontsize='x-small')
                 
                 
-                plt.savefig(f"{output_dir}/{var}_5Fold_Comparison_w.png", dpi=300, bbox_inches="tight")
-                plt.savefig(f"{output_dir}/{var}_5Fold_Comparison_w.pdf", bbox_inches="tight")
+                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_5Fold_Comparison_w.png", dpi=300, bbox_inches="tight")
+                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_5Fold_Comparison_w.pdf", bbox_inches="tight")
                 #print(f"  -> Saved plots to {output_dir}")
                 plt.close()
 

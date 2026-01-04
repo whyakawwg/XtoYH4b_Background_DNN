@@ -1,4 +1,2 @@
 # XtoYH4b_Background_DNN
-Scripts for training DNN model for background estimation
-
-For 
+Scripts that train and test DNN model for background estimation in the analysis of $X \rightarrow YH \rightarrow 4b$.
