@@ -2,8 +2,10 @@ import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts") 
-import fold_functions
-from fold_functions import build_binning_map, processing, fast_fill
+# import fold_functions
+# from fold_functions import build_binning_map, processing, fast_fill
+import fold_functions_ptcut
+from fold_functions_ptcut import build_binning_map, processing, fast_fill
 
 import numpy as np
 from tensorflow.keras.models import load_model
@@ -177,7 +179,7 @@ if args.runType == "test-only":
 
 
     # Define Bin
-
+    ROOT.TH1.SetDefaultSumw2(True)
     for var, data in var_data_map.items():
     
         if var in binning_map:

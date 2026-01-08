@@ -244,7 +244,7 @@ def build_binning_map(njets):
     jet_mass_bin_edges = np.linspace(0, 100, 51)
     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
     eta_bin_edges  = np.linspace(-5, 5, 51)
-    phi_bin_edges  = np.linspace(-3.2, 3.2, 51)
+    phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
     HT_bin_edges   = np.linspace(0, 2000, 51)
     dr_bin_edges   = np.linspace(0, 6.3, 51)
     pt_bin_edges   = np.linspace(0, 1000, 51)
@@ -779,3 +779,180 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True):
 
 
     return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, y_sys
+
+def all_jets_processing(file_list, args=None):
+    """
+    Process data from root files (Inclusive 2b/3b/4b for debugging)
+    """
+    # Imports are assumed to be at top of file, but ensuring vector/np are available
+    import numpy as np
+    import uproot
+    import vector
+
+    njets = 4
+
+    columns = ['JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
+            'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 
+            'JetAK4_eta_1', 'JetAK4_eta_2', 'JetAK4_eta_3', 'JetAK4_eta_4', 
+            'JetAK4_phi_1', 'JetAK4_phi_2', 'JetAK4_phi_3', 'JetAK4_phi_4', 
+            'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4',
+            'JetAK4_add_pt', 'JetAK4_add_eta', 'JetAK4_add_phi', 'JetAK4_add_mass', 
+            'Hcand_1_pt', 'Hcand_1_eta', 'Hcand_1_phi', 'Hcand_1_mass',
+            'Hcand_2_pt', 'Hcand_2_eta', 'Hcand_2_phi', 'Hcand_2_mass',
+            'H1_b1b2_deta', 'H1_b1b2_dphi', 'H1_b1b2_dR',
+            'H2_b1b2_deta', 'H2_b1b2_dphi', 'H2_b1b2_dR',
+            'H1H2_pt', 'H1H2_eta', 'H1H2_phi', #'H1H2_mass',
+            'H1H2_deta', 'H1H2_dphi', 'H1H2_dR',
+            'HT_4j',
+            'njets_add', 'HT_add',
+            'Hcand_mass', 'Ycand_mass']
+
+    if args.runType == "train-only":
+        tree_arr = uproot.concatenate(
+            [f"{f}:Tree_JetInfo" for f in file_list], 
+            expressions=columns, 
+            library="np"
+        )
+        n_events = len(tree_arr["JetAK4_pt_1"]) 
+
+    elif args.runType == "test-only":
+        input_file = uproot.open(f"/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root")
+        tree = input_file["Tree_JetInfo"]
+        n_events = tree.num_entries
+        tree_arr = tree.arrays(columns, library="np", entry_stop=n_events)
+
+    else:
+        print("For k-fold, train-test is not available yet.")
+        exit(1)
+
+    # --- Safety Check: Ensure data exists ---
+    if n_events == 0:
+        print("[Error] No events found in the input file!")
+        exit(1)
+
+    wp1 = tree_arr["JetAK4_btag_B_WP_1"]
+    wp2 = tree_arr["JetAK4_btag_B_WP_2"]
+
+    H_mass = tree_arr["Hcand_mass"]
+    min_mask = (H_mass > 50) & (H_mass < 300)
+
+    if args.TestRegion == "3bHiggsMW":
+        common_mask = ((H_mass >= 90) & (H_mass <= 150))
+    else:
+        # Standard SB/SR definition
+        common_mask = ((H_mass < 90) | (H_mass > 150)) & min_mask
+
+    inclusive_mask = (wp1 >= 3) & (wp2 >= 3) # & common_mask & min_mask
+
+    all_idx = np.where(inclusive_mask)[0]
+    n_events = len(all_idx)
+    
+    # Using 1s so they plot as "Data" points (black dots) instead of filled background
+    # Change to np.zeros(n_events, dtype=np.int32) if you want them treated as background
+    signal_flag = np.ones(n_events, dtype=np.int32) 
+
+    if args.isBalanceClass == 1:
+        BalanceClass = "BalanceClass"
+    else:
+        BalanceClass = "NoBalanceClass"
+
+    combined_tree = {
+        "signal": signal_flag,
+        **{key: val[all_idx] for key, val in tree_arr.items()}
+    }
+
+    jets = vector.arr({
+        "pt":   np.stack([combined_tree[f"JetAK4_pt_{i+1}"]   for i in range(njets)], axis=1),
+        "eta":  np.stack([combined_tree[f"JetAK4_eta_{i+1}"]  for i in range(njets)], axis=1),
+        "phi":  np.stack([combined_tree[f"JetAK4_phi_{i+1}"]  for i in range(njets)], axis=1),
+        "mass": np.stack([combined_tree[f"JetAK4_mass_{i+1}"] for i in range(njets)], axis=1),
+    })
+
+    Hcand_index_cols = [f"JetAK4_Hcand_index_{i+1}" for i in range(njets)]
+
+    dR1_arr = np.full(n_events, np.nan)
+    dR2_arr = np.full(n_events, np.nan)
+
+    # Note: isHcand_index_available logic removed/simplified as it was set to False in snippet
+    jet_pairs = [[(1, 2), (3, 4)],
+                [(1, 3), (2, 4)],
+                [(1, 4), (2, 3)]]
+
+    for i in range(n_events):
+        best_min   = np.inf
+        best_dRs   = (np.nan, np.nan)
+
+        for pair_set in jet_pairs:
+            # -1 because vector array is 0-indexed, but names are 1-4
+            dR1 = jets[i, pair_set[0][0]-1].deltaR(jets[i, pair_set[0][1]-1])
+            dR2 = jets[i, pair_set[1][0]-1].deltaR(jets[i, pair_set[1][1]-1])
+
+            if min(dR1, dR2) < best_min:
+                best_min = min(dR1, dR2)
+                best_dRs = (dR1, dR2)
+
+        dR1_arr[i], dR2_arr[i] = best_dRs
+
+    if args.isScaling == 1:
+        Scaling = "Scaling"
+    else:
+        Scaling = "NoScaling"
+
+    combined_tree["dR_1"] = dR1_arr
+    combined_tree["dR_2"] = dR2_arr
+    
+    # --- Define Plotting Variables ---
+    dR1_plot = dR1_arr.copy() # Fixed: Defined here so aux_data can find it
+    dR2_plot = dR2_arr.copy()
+
+    if args.runType == "test-only" or args.runType == "train-test":
+        MH = combined_tree["Hcand_mass"]
+        MY = combined_tree["Ycand_mass"]
+        n_jets_add = combined_tree["njets_add"]
+        HT_additional = combined_tree["HT_add"]
+        
+        # Calculate MX (Vector mass)
+        mx = (jets[:, 0] + jets[:, 1] + jets[:, 2] + jets[:, 3]).mass
+        
+        if args.isMC == 1:
+            event_weights = combined_tree["Event_weight"]
+        else:
+            event_weights = np.ones(n_events, dtype=float)
+            
+        closure_labels = ["Inclusive", "None", "None"]
+    else:
+        # Initialize empty if not testing
+        MH, MY, n_jets_add, HT_additional, mx, event_weights = [None]*6
+        closure_labels = []
+
+    drop_cols = [f"JetAK4_btag_B_WP_{i+1}" for i in range(njets)]
+    drop_cols += ["Hcand_mass", "Ycand_mass", "dR_1", "dR_2", "HT_add", "njets_add"]
+    drop_cols += [f"JetAK4_add_{var}" for var in ["pt", "eta", "phi", "mass"]]
+    drop_cols += ["Hcand_1_mass", "Hcand_2_mass"]
+
+    for col in drop_cols:
+        if col in combined_tree:
+            del combined_tree[col]
+
+    label_name = "signal"
+    feature_names = [col for col in combined_tree.keys() if col != label_name]
+    features = np.stack([combined_tree[col] for col in feature_names], axis=1)
+
+    if args.runType == "test-only" or args.runType == "train-test":
+        aux_data = {
+            "jets": jets,             
+            "MX": mx,                 
+            "MH": MH,
+            "MY": MY,
+            "n_jets_add": n_jets_add,
+            "HT_additional": HT_additional,
+            "dR1_plot": dR1_plot,  # Fixed: Now defined
+            "dR2_plot": dR2_plot,
+            "event_weights": event_weights,
+            "BalanceClass": BalanceClass, 
+            "closure": closure_labels # Fixed: Changed from 'closure' to 'closure_labels'
+        }
+    else:
+        aux_data = {}
+
+    return feature_names, features, combined_tree, aux_data

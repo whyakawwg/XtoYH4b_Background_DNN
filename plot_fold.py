@@ -2,8 +2,10 @@ import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts")
-import fold_functions
-from fold_functions import get_hist_with_total_error, get_fold_hists, check_h_nomerror_2b_staterror, get_fold_errors, check_4b_2b_errors, calculate_error_from_histograms
+# import fold_functions
+# from fold_functions import get_hist_with_total_error, get_fold_hists, check_h_nomerror_2b_staterror, get_fold_errors, check_4b_2b_errors, calculate_error_from_histograms
+import fold_functions_ptcut
+from fold_functions_ptcut import get_hist_with_total_error, get_fold_hists, check_h_nomerror_2b_staterror, get_fold_errors, check_4b_2b_errors, calculate_error_from_histograms
 
 import ROOT
 import numpy as np

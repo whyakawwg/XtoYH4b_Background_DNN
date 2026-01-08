@@ -240,11 +240,11 @@ def build_binning_map(njets):
                                1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
                                2750,3000,3500,4000])
     my_bin_edges   = np.linspace(0, 1000, 51)
-    mh_bin_edges   = np.linspace(0, 300, 51)
+    mh_bin_edges   = np.linspace(0, 300, 61)
     jet_mass_bin_edges = np.linspace(0, 100, 51)
     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
     eta_bin_edges  = np.linspace(-5, 5, 51)
-    phi_bin_edges  = np.linspace(-3.2, 3.2, 51)
+    phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
     HT_bin_edges   = np.linspace(0, 2000, 51)
     dr_bin_edges   = np.linspace(0, 6.3, 51)
     pt_bin_edges   = np.linspace(0, 1000, 51)

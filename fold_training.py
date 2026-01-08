@@ -3,9 +3,10 @@ import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts")
-import fold_functions
-#from fold_functions import build_binning_map, processing, fast_fill, get_10fold_filelists, plotting, plot_variable_correlation, plotting_2D, get_fold_hists, get_fold_errors, calculate_error_from_histograms, plot_hist, plot_training_results, plotting_2D, get_5fold_filelists
-from fold_functions import *
+# import fold_functions
+# from fold_functions import *
+import fold_functions_ptcut
+from fold_functions_ptcut import *
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
