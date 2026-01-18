@@ -16,7 +16,7 @@ output_dir="${input_dir}/${test_region}_Quantiles_Evaluation"
 
 script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_3b_evaluation.py"
 
-plot_script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/plot_3b_fold.py"
+plot_script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/plot_fold.py"
 
 CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
 
@@ -46,7 +46,7 @@ eval \`scramv1 runtime -sh\`
 
 cd $output_dir
 ${jobs[$name]}
-python3 plot_3b_fold.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}
+python3 plot_fold.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}
 EOF
     chmod +x "$exe_file"
 
