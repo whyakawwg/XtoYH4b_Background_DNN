@@ -152,18 +152,6 @@ if args.runType == "test-only":
         exit(1)
 
     avg_score = np.mean(all_fold_scores, axis=0)
-    # w_mean_raw = np.mean(all_fold_weights, axis=0)
-    # q16 = np.percentile(all_fold_weights, 16, axis=0)
-    # q84 = np.percentile(all_fold_weights, 84, axis=0)
-
-    #sys_sigma = (q84 - q16) / 2.0
-
-    # w_mean = w_mean_raw * current_weights
-    # w_up_raw   = w_mean_raw + sys_sigma
-    # w_down_raw = np.maximum(w_mean_raw - sys_sigma, 0.0)
-
-    # w_up   = w_up_raw   * current_weights
-    # w_down = w_down_raw * current_weights
 
     w_individual_folds = all_fold_weights * current_weights
 
@@ -198,11 +186,7 @@ if args.runType == "test-only":
         
         d_2T = data[mask_2T]
         w_2T = current_weights[mask_2T]
-        # w_nom = w_mean[mask_2T]
-        # w_sys_u = w_up[mask_2T]
-        # w_sys_d = w_down[mask_2T]
        
-
         h_3T = create_hist(f"{var}_hist_4b_mean", f"{var} 4b")
         h_3T.Sumw2()
         fast_fill(h_3T, d_3T, w_3T) 
@@ -218,26 +202,11 @@ if args.runType == "test-only":
             fast_fill(h_fold, d_2T, w_this_fold) 
             h_fold.Write()
 
-        # h_nom = create_hist(f"{var}_hist_2b_w_mean", f"{var} 2b_w Mean")
-        # h_nom.Sumw2()
-        # fast_fill(h_nom, d_2T, w_nom) 
-        # h_nom.Write()
-        # h_up = create_hist(f"{var}_hist_2b_w_sys_up", f"{var} 2b_w Sys Up")
-        # h_up.Sumw2()
-        # fast_fill(h_up, d_2T, w_sys_u) 
-        # h_up.Write()
-
-        # h_dn = create_hist(f"{var}_hist_2b_w_sys_down", f"{var} 2b_w Sys Down")
-        # h_dn.Sumw2()
-        # fast_fill(h_dn, d_2T, w_sys_d) 
-        # h_dn.Write()
-
         h_2T = create_hist(f"{var}_hist_2b_mean", f"{var} 2b")
         h_2T.Sumw2()
         fast_fill(h_2T, d_2T, w_2T) 
         h_2T.Write()
         
-
     f_out.Close()
     print("All histograms saved successfully.")
 

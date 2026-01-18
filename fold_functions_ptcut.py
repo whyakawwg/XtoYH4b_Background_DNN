@@ -235,11 +235,16 @@ def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
 
 def build_binning_map(njets):
     bin_edges      = np.linspace(0, 1, 51)
+    # mx_bin_edges   = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,
+    #                            450,500,550,600,650,700,750,800,850,900,950,1000,
+    #                            1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
+    #                            2750,3000,3500,4000])
     mx_bin_edges   = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,
-                               450,500,550,600,650,700,750,800,850,900,950,1000,
-                               1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
-                               2750,3000,3500,4000])
-    my_bin_edges   = np.linspace(0, 1000, 51)
+                                450,500,550,600,650,700,750,800,850,900,950,1000,
+                                1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
+                                2750,3000,3500,4000,4500]) 
+    # my_bin_edges   = np.linspace(0, 1000, 51)
+    my_bin_edges = np.array([30,40,50,60,75,90,110,130,150,175,200,250,300,400,600,1000])
     mh_bin_edges   = np.linspace(0, 300, 61)
     jet_mass_bin_edges = np.linspace(0, 100, 51)
     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
@@ -333,6 +338,291 @@ def get_10fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/spl
 
     return train_files, test_files
 
+def plot_training_results(history, plot_dir, args=None):
+    history_dict = history.history
+    epochs = range(1, len(history_dict['loss']) + 1)
+
+    plt.figure(figsize=(14, 5))
+
+    # Loss Plot
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, history_dict['loss'], 'b-', label='Training Loss')
+    plt.plot(epochs, history_dict['val_loss'], 'r-', label='Validation Loss')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(plot_dir, f"{args.Model}_Training_Validation_Loss.png"), dpi=300)
+    # plt.close()
+
+    # AUC Plot
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, history_dict['auc'], 'b-', label='Training AUC')
+    plt.plot(epochs, history_dict['val_auc'], 'r-', label='Validation AUC')
+    plt.title('Training and Validation AUC')
+    plt.xlabel('Epochs')
+    plt.ylabel('AUC')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_dir, f"{args.Model}_Training_Validation_AUC.png"), dpi=300)
+    plt.close()
+
+def fast_fill(hist, data, weights):
+    """
+    Helper function to speed up ROOT histogram filling using FillN.
+    Converts numpy arrays to contiguous float64 for C++ compatibility.
+    """
+    if len(data) == 0: return
+    
+    d_arr = np.ascontiguousarray(data, dtype=np.float64)
+    w_arr = np.ascontiguousarray(weights, dtype=np.float64)
+    
+    hist.FillN(len(d_arr), d_arr, w_arr)
+
+def calculate_chi2(h_obs, h_exp, h_exp_up, h_exp_dn):
+    chi2 = 0.0
+    ndf = 0
+    
+    for i in range(1, h_obs.GetNbinsX() + 1):
+        obs = h_obs.GetBinContent(i)
+        exp = h_exp.GetBinContent(i)
+        if obs == 0 and exp == 0: continue 
+            
+        sigma_data = h_obs.GetBinError(i)
+        sigma_model_stat = h_exp.GetBinError(i)
+
+        if obs >= exp:
+            sigma_sys = abs(h_exp_up.GetBinContent(i) - exp)
+        else:
+            sigma_sys = abs(h_exp_dn.GetBinContent(i) - exp)
+
+        total_variance = sigma_data**2 + sigma_model_stat**2 + sigma_sys**2
+        
+        if total_variance > 0:
+            chi2 += (obs - exp)**2 / total_variance
+            ndf += 1
+            
+    return chi2, max(ndf - 1, 1)
+
+def get_chi2_root_method(h_data, h_nom, h_up, h_dn):
+    h_total_err = h_nom.Clone("h_total_err_for_chi2")
+    
+    n_bins = h_nom.GetNbinsX()
+    
+    for i in range(1, n_bins + 1):
+
+        sigma_stat = h_nom.GetBinError(i)
+        
+        diff_up = abs(h_up.GetBinContent(i) - h_nom.GetBinContent(i))
+        diff_dn = abs(h_dn.GetBinContent(i) - h_nom.GetBinContent(i))
+        sigma_sys = max(diff_up, diff_dn)
+        
+        sigma_total = np.sqrt(sigma_stat**2 + sigma_sys**2)
+        h_total_err.SetBinError(i, sigma_total)
+        
+    chi2 = h_data.Chi2Test(h_total_err, "WW CHI2/NDF")
+    
+    return chi2
+
+def get_fold_hists(file, var_name, n_folds, scale_factor=1.0):
+    """Helper to load individual fold histograms"""
+    fold_data = []
+
+    for i in range(1, n_folds + 1):
+        h = file.Get(f"{var_name}_hist_2b_fold{i}")
+        if not h:
+            print(f"Warning: Fold {i} not found for {var_name}")
+            continue
+        h.Scale(scale_factor)
+        n = h.GetNbinsX()
+        y = np.array([h.GetBinContent(b) for b in range(1, n+1)])
+        fold_data.append(y)
+    return fold_data
+
+def get_split_fold_hists(file, var_name, n_splits=5, n_folds=10, scale_factor=1.0):
+    fold_data = []
+
+    for split in range(n_splits):
+        for fold in range(1, n_folds + 1):
+            h_name = f"{var_name}_hist_2b_split{split}_fold{fold}"
+            h = file.Get(h_name)
+            if not h: 
+                print(f"Warning: Fold {fold} Split {split}not found for {var_name}")
+                continue
+            h.Scale(scale_factor)
+            n = h.GetNbinsX()
+            y = np.array([h.GetBinContent(b) for b in range(1, n+1)])
+            fold_data.append(y)
+    return fold_data
+
+def check_h_nomerror_2b_staterror(file, var_name):
+    h_nom = file.Get(f"{var_name}_hist_2b_w_mean")
+    h_2b  = file.Get(f"{var_name}_hist_2b_mean")
+
+    n = h_nom.GetNbinsX()
+    for i in range(1, n+1):
+        nom_err = h_nom.GetBinError(i)
+        stat_err = h_2b.GetBinError(i)
+        if nom_err < stat_err:
+            print(f"Warning: For {var_name} bin {i}, nom error {nom_err} < 2b stat error {stat_err}")
+        if nom_err == stat_err:
+            print(f"Note: For {var_name} bin {i}, nom error {nom_err} == 2b stat error {stat_err}")
+
+def get_fold_errors(file, var_name, n_folds, TrainRegion="4b"):
+    """Helper to get statistical errors for each fold histogram"""
+    fold_errors = []
+    ratio_errs = []
+
+    if TrainRegion == "3b":
+        for split in range(5):
+            for i in range(1, n_folds + 1):
+                h = file.Get(f"{var_name}_hist_2b_split{split}_fold{i}")
+                if not h:
+                    print(f"Warning: Fold {i} Split {split} not found for {var_name}")
+                    continue
+                n = h.GetNbinsX()
+                errs = np.array([h.GetBinError(b) for b in range(1, n+1)])
+                fold_errors.append(errs)
+                ratio_err = errs / np.where(np.array([h.GetBinContent(b) for b in range(1, n+1)]) > 0,
+                                            np.array([h.GetBinContent(b) for b in range(1, n+1)]),
+                                            1e-10)
+                ratio_errs.append(ratio_err)
+
+    else:
+        for i in range(1, n_folds + 1):
+            h = file.Get(f"{var_name}_hist_2b_fold{i}")
+            if not h:
+                print(f"Warning: Fold {i} not found for {var_name}")
+                continue
+            n = h.GetNbinsX()
+            errs = np.array([h.GetBinError(b) for b in range(1, n+1)])
+            fold_errors.append(errs)
+            ratio_err = errs / np.where(np.array([h.GetBinContent(b) for b in range(1, n+1)]) > 0,
+                                        np.array([h.GetBinContent(b) for b in range(1, n+1)]),
+                                        1e-10)
+            ratio_errs.append(ratio_err)
+
+    return ratio_errs
+
+def check_4b_2b_errors(file, var_name):
+    h_4b = file.Get(f"{var_name}_hist_4b_mean")
+    h_2b = file.Get(f"{var_name}_hist_2b_mean")
+
+    n = h_4b.GetNbinsX()
+    err_4b = []
+    err_2b = []
+    for i in range(1, n+1):
+        err_4b.append(h_4b.GetBinError(i))
+        err_2b.append(h_2b.GetBinError(i))
+    
+    ratio_err_4b = np.array(err_4b) / np.where(np.array([h_4b.GetBinContent(b) for b in range(1, n+1)]) > 0,
+                                               np.array([h_4b.GetBinContent(b) for b in range(1, n+1)]),
+                                               1e-10)
+    ratio_err_2b = np.array(err_2b) / np.where(np.array([h_2b.GetBinContent(b) for b in range(1, n+1)]) > 0,
+                                               np.array([h_2b.GetBinContent(b) for b in range(1, n+1)]),
+                                               1e-10)
+
+    return ratio_err_4b, ratio_err_2b, n
+
+def calculate_error_from_histograms(file, var_name, n_folds, TrainRegion="4b"):
+    """
+    Calculate the systematic uncertainty from the spread of fold histograms for each bin. Use the same percentile methods.
+    """
+    if TrainRegion == "3b":
+        fold_ys = get_split_fold_hists(file, var_name, n_splits=5, n_folds=n_folds)
+    else:
+        fold_ys = get_fold_hists(file, var_name, n_folds)
+        
+    
+    n_bins = len(fold_ys[0]) 
+    
+    sys_sigma = np.zeros(n_bins)
+    mean = np.zeros(n_bins) 
+    
+    for i in range(n_bins):
+        bin_values = [fold[i] for fold in fold_ys]   
+        mean[i] = np.mean(bin_values)
+        q16 = np.percentile(bin_values, 16)
+        q84 = np.percentile(bin_values, 84)
+        sys_sigma[i] = (q84 - q16) / 2.0
+    return mean, sys_sigma
+
+def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegion="4b"):
+    h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
+    h_2T  = file.Get(f"{var_name}_hist_2b_mean")
+
+    n_bins = h_3T.GetNbinsX()
+
+    fold_data = []
+
+    if TrainRegion == "3b":
+        n_splits = 5         
+        for split in range(n_splits):
+            for fold in range(1, n_folds + 1):
+                h_name = f"{var_name}_hist_2b_split{split}_fold{fold}"
+                h_fold = file.Get(h_name)
+                if not h_fold:
+                    print(f"Warning: Fold {fold_idx+1} Split {split}not found for {var_name}")
+                    continue                
+                content = [h_fold.GetBinContent(i) for i in range(1, n_bins + 1)]
+                fold_data.append(content)
+                
+    else:
+        for fold_idx in range(n_folds):
+            h_name = f"{var_name}_hist_2b_fold{fold_idx+1}"
+            h_fold = file.Get(h_name)            
+            if not h_fold:
+                print(f"Warning: Fold {fold_idx+1} not found for {var_name}")
+                continue            
+            content = [h_fold.GetBinContent(i) for i in range(1, n_bins + 1)]
+            fold_data.append(content)
+
+    fold_array = np.array(fold_data)
+    y_mean = np.mean(fold_array, axis=0)
+    q16 = np.percentile(fold_array, 16, axis=0)
+    q84 = np.percentile(fold_array, 84, axis=0)
+
+    y_sys = (q84 - q16) / 2.0
+
+    scale_factor = 1.0
+
+    if normalize:
+        if h_3T.Integral() > 0:
+            h_3T.Scale(1.0 / h_3T.Integral())
+
+        if h_2T.Integral() > 0:
+            h_2T.Scale(1.0 / h_2T.Integral())
+
+        total_integral = np.sum(y_mean)
+        
+        if total_integral > 0:
+            scale_factor = 1.0 / total_integral
+            
+            y_mean *= scale_factor
+            y_sys  *= scale_factor
+
+    err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
+    err_tot = np.sqrt(err_stat**2 + y_sys**2)
+
+    h_total_err_for_chi2 = h_2T.Clone(f"{var_name}_total_err")
+    for i in range(n_bins):
+        bin_idx = i + 1 
+        h_total_err_for_chi2.SetBinContent(bin_idx, y_mean[i])
+        h_total_err_for_chi2.SetBinError(bin_idx, err_tot[i])
+
+    chi2_val = h_3T.Chi2Test(h_total_err_for_chi2, "WW CHI2/NDF")
+    chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
+
+    edges = np.array([h_3T.GetBinLowEdge(i) for i in range(1, n_bins+2)])
+    y_3T = np.array([h_3T.GetBinContent(i) for i in range(1, n_bins+1)])
+    y_2T = np.array([h_2T.GetBinContent(i) for i in range(1, n_bins+1)])
+
+    return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, y_sys
+
 def processing(file_list, args=None):
     """
     Process data from root files
@@ -418,6 +708,27 @@ def processing(file_list, args=None):
 
     sig_idx = np.where(sig_mask)[0]
     bkg_idx = np.where(bkg_mask)[0]
+
+    if args.runType == "train-only" and args.TrainRegion == "3b":
+        
+        rng = np.random.default_rng(seed=42)
+        
+        rng.shuffle(sig_idx)
+        
+        n_total_3b = len(sig_idx)
+        chunk_size = int(n_total_3b / 5)
+        
+        start_idx = args.SplitIndex * chunk_size
+        end_idx   = start_idx + chunk_size
+        
+        if args.SplitIndex == 4:
+            end_idx = n_total_3b
+            
+        print(f"[INFO] 3b Split Strategy: Using Split {args.SplitIndex}/5")
+        print(f"[INFO] Slice Range: {start_idx} to {end_idx} (Total 3b Pool: {n_total_3b})")
+        
+        sig_idx_subset = sig_idx[start_idx : end_idx]
+        sig_idx = sig_idx_subset
 
 
     if args.isBalanceClass == 1:
@@ -550,239 +861,3 @@ def processing(file_list, args=None):
         aux_data = {}
 
     return feature_names, features, combined_tree, aux_data
-
-def plot_training_results(history, plot_dir, args=None):
-    history_dict = history.history
-    epochs = range(1, len(history_dict['loss']) + 1)
-
-    plt.figure(figsize=(14, 5))
-
-    # Loss Plot
-    plt.subplot(1, 2, 1)
-    plt.plot(epochs, history_dict['loss'], 'b-', label='Training Loss')
-    plt.plot(epochs, history_dict['val_loss'], 'r-', label='Validation Loss')
-    plt.title('Training and Validation Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid(True)
-    # plt.tight_layout()
-    # plt.savefig(os.path.join(plot_dir, f"{args.Model}_Training_Validation_Loss.png"), dpi=300)
-    # plt.close()
-
-    # AUC Plot
-    plt.subplot(1, 2, 2)
-    plt.plot(epochs, history_dict['auc'], 'b-', label='Training AUC')
-    plt.plot(epochs, history_dict['val_auc'], 'r-', label='Validation AUC')
-    plt.title('Training and Validation AUC')
-    plt.xlabel('Epochs')
-    plt.ylabel('AUC')
-    plt.legend()
-    plt.grid(True)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, f"{args.Model}_Training_Validation_AUC.png"), dpi=300)
-    plt.close()
-
-def fast_fill(hist, data, weights):
-    """
-    Helper function to speed up ROOT histogram filling using FillN.
-    Converts numpy arrays to contiguous float64 for C++ compatibility.
-    """
-    if len(data) == 0: return
-    
-    d_arr = np.ascontiguousarray(data, dtype=np.float64)
-    w_arr = np.ascontiguousarray(weights, dtype=np.float64)
-    
-    hist.FillN(len(d_arr), d_arr, w_arr)
-
-def calculate_chi2(h_obs, h_exp, h_exp_up, h_exp_dn):
-    chi2 = 0.0
-    ndf = 0
-    
-    for i in range(1, h_obs.GetNbinsX() + 1):
-        obs = h_obs.GetBinContent(i)
-        exp = h_exp.GetBinContent(i)
-        if obs == 0 and exp == 0: continue 
-            
-        sigma_data = h_obs.GetBinError(i)
-        sigma_model_stat = h_exp.GetBinError(i)
-
-        if obs >= exp:
-            sigma_sys = abs(h_exp_up.GetBinContent(i) - exp)
-        else:
-            sigma_sys = abs(h_exp_dn.GetBinContent(i) - exp)
-
-        total_variance = sigma_data**2 + sigma_model_stat**2 + sigma_sys**2
-        
-        if total_variance > 0:
-            chi2 += (obs - exp)**2 / total_variance
-            ndf += 1
-            
-    return chi2, max(ndf - 1, 1)
-
-def get_chi2_root_method(h_data, h_nom, h_up, h_dn):
-    h_total_err = h_nom.Clone("h_total_err_for_chi2")
-    
-    n_bins = h_nom.GetNbinsX()
-    
-    for i in range(1, n_bins + 1):
-
-        sigma_stat = h_nom.GetBinError(i)
-        
-        diff_up = abs(h_up.GetBinContent(i) - h_nom.GetBinContent(i))
-        diff_dn = abs(h_dn.GetBinContent(i) - h_nom.GetBinContent(i))
-        sigma_sys = max(diff_up, diff_dn)
-        
-        sigma_total = np.sqrt(sigma_stat**2 + sigma_sys**2)
-        h_total_err.SetBinError(i, sigma_total)
-        
-    chi2 = h_data.Chi2Test(h_total_err, "WW CHI2/NDF")
-    
-    return chi2
-
-def get_fold_hists(file, var_name, n_folds, scale_factor=1.0):
-    """Helper to load individual fold histograms"""
-    fold_data = []
-
-    for i in range(1, n_folds + 1):
-        h = file.Get(f"{var_name}_hist_2b_fold{i}")
-        if not h:
-            print(f"Warning: Fold {i} not found for {var_name}")
-            continue
-        h.Scale(scale_factor)
-        n = h.GetNbinsX()
-        y = np.array([h.GetBinContent(b) for b in range(1, n+1)])
-        fold_data.append(y)
-    return fold_data
-
-def check_h_nomerror_2b_staterror(file, var_name):
-    h_nom = file.Get(f"{var_name}_hist_2b_w_mean")
-    h_2b  = file.Get(f"{var_name}_hist_2b_mean")
-
-    n = h_nom.GetNbinsX()
-    for i in range(1, n+1):
-        nom_err = h_nom.GetBinError(i)
-        stat_err = h_2b.GetBinError(i)
-        if nom_err < stat_err:
-            print(f"Warning: For {var_name} bin {i}, nom error {nom_err} < 2b stat error {stat_err}")
-        if nom_err == stat_err:
-            print(f"Note: For {var_name} bin {i}, nom error {nom_err} == 2b stat error {stat_err}")
-
-def get_fold_errors(file, var_name, n_folds):
-    """Helper to get statistical errors for each fold histogram"""
-    fold_errors = []
-    ratio_errs = []
-
-    for i in range(1, n_folds + 1):
-        h = file.Get(f"{var_name}_hist_2b_fold{i}")
-        if not h:
-            print(f"Warning: Fold {i} not found for {var_name}")
-            continue
-        n = h.GetNbinsX()
-        errs = np.array([h.GetBinError(b) for b in range(1, n+1)])
-        fold_errors.append(errs)
-        ratio_err = errs / np.where(np.array([h.GetBinContent(b) for b in range(1, n+1)]) > 0,
-                                     np.array([h.GetBinContent(b) for b in range(1, n+1)]),
-                                     1e-10)
-        ratio_errs.append(ratio_err)
-
-    return ratio_errs
-
-def check_4b_2b_errors(file, var_name):
-    h_4b = file.Get(f"{var_name}_hist_4b_mean")
-    h_2b = file.Get(f"{var_name}_hist_2b_mean")
-
-    n = h_4b.GetNbinsX()
-    err_4b = []
-    err_2b = []
-    for i in range(1, n+1):
-        err_4b.append(h_4b.GetBinError(i))
-        err_2b.append(h_2b.GetBinError(i))
-    
-    ratio_err_4b = np.array(err_4b) / np.where(np.array([h_4b.GetBinContent(b) for b in range(1, n+1)]) > 0,
-                                               np.array([h_4b.GetBinContent(b) for b in range(1, n+1)]),
-                                               1e-10)
-    ratio_err_2b = np.array(err_2b) / np.where(np.array([h_2b.GetBinContent(b) for b in range(1, n+1)]) > 0,
-                                               np.array([h_2b.GetBinContent(b) for b in range(1, n+1)]),
-                                               1e-10)
-
-    return ratio_err_4b, ratio_err_2b, n
-
-def calculate_error_from_histograms(file, var_name, n_folds):
-    """
-    Calculate the systematic uncertainty from the spread of fold histograms for each bin. Use the same percentile methods.
-    """
-    fold_ys = get_fold_hists(file, var_name, n_folds)
-    
-    n_bins = len(fold_ys[0]) 
-    
-    sys_sigma = np.zeros(n_bins)
-    mean = np.zeros(n_bins) 
-    
-    for i in range(n_bins):
-        bin_values = [fold[i] for fold in fold_ys]   
-        mean[i] = np.mean(bin_values)
-        q16 = np.percentile(bin_values, 16)
-        q84 = np.percentile(bin_values, 84)
-        sys_sigma[i] = (q84 - q16) / 2.0
-    return mean, sys_sigma
-
-def get_hist_with_total_error(file, var_name, n_folds, normalize=True):
-    h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
-    h_2T  = file.Get(f"{var_name}_hist_2b_mean")
-    n_bins = h_3T.GetNbinsX()
-
-    fold_data = []
-
-    for fold_idx in range(n_folds):
-        h_fold = file.Get(f"{var_name}_hist_2b_fold{fold_idx+1}")
-        if not h_fold:
-            print(f"Warning: Fold {fold_idx+1} not found for {var_name}")
-            continue
-        content = [h_fold.GetBinContent(i) for i in range(1, n_bins + 1)]
-        fold_data.append(content)
-
-    fold_array = np.array(fold_data)
-    y_mean = np.mean(fold_array, axis=0)
-    q16 = np.percentile(fold_array, 16, axis=0)
-    q84 = np.percentile(fold_array, 84, axis=0)
-
-    y_sys = (q84 - q16) / 2.0
-
-    scale_factor = 1.0
-
-    if normalize:
-        if h_3T.Integral() > 0:
-            h_3T.Scale(1.0 / h_3T.Integral())
-
-        if h_2T.Integral() > 0:
-            h_2T.Scale(1.0 / h_2T.Integral())
-
-        total_integral = np.sum(y_mean)
-        
-        if total_integral > 0:
-            scale_factor = 1.0 / total_integral
-            
-            y_mean *= scale_factor
-            y_sys  *= scale_factor
-
-    err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
-    err_tot = np.sqrt(err_stat**2 + y_sys**2)
-
-    h_total_err_for_chi2 = h_2T.Clone(f"{var_name}_total_err")
-    for i in range(n_bins):
-        bin_idx = i + 1 
-        h_total_err_for_chi2.SetBinContent(bin_idx, y_mean[i])
-        h_total_err_for_chi2.SetBinError(bin_idx, err_tot[i])
-
-    chi2_val = h_3T.Chi2Test(h_total_err_for_chi2, "WW CHI2/NDF")
-    chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
-
-    edges = np.array([h_3T.GetBinLowEdge(i) for i in range(1, n_bins+2)])
-    y_3T = np.array([h_3T.GetBinContent(i) for i in range(1, n_bins+1)])
-    y_2T = np.array([h_2T.GetBinContent(i) for i in range(1, n_bins+1)])
-
-
-
-    return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, y_sys

@@ -2,13 +2,13 @@
 
 n_folds=10
 
-special_name="10fold_dec21"
+special_name="split3b"
 
 run_type="train-only" # Change the run type: "train-test", "train-only", "test-only"
 
-train_region="4b" # Change the train region: "4b", "3b"
+train_region="3b" # Change the train region: "4b", "3b"
 
-test_region="4btest" # Change the test region: "4btest", "3btest", "3bHiggsMW"
+test_region="3btest" # Change the test region: "4btest", "3btest", "3bHiggsMW"
 
 script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_training.py"
 
@@ -22,13 +22,25 @@ mkdir -p "$output_dir"
 
 output_job_dir="${output_dir}/${train_region}/job3"
 mkdir -p "$output_job_dir"
+mkdir -p "$output_job_dir"/logs
 
 cp "$script_dir" "$input_dir"
 
 declare -A jobs
 
-for i in $(seq 1 $n_folds); do
-    jobs["DNN_${train_region}vs2b_${special_name}_${i}"]="python3 fold_training.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --foldN ${i} --Nfold ${n_folds}"
+for split in {0..4}; do
+
+    # Inner Loop: Iterate through the 10 Folds (1 to 10)
+    for i in $(seq 1 $n_folds); do
+        
+        # 1. Create a unique Job Name that includes BOTH Fold and Split info
+        #    Example: DNN_3bvs2b_TestName_Fold1_Split0
+        job_key="DNN_${train_region}vs2b_${special_name}_Fold${i}_Split${split}"
+        
+        # 2. Add the --SplitIndex argument to the command
+        jobs["$job_key"]="python3 fold_training.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --foldN ${i} --Nfold ${n_folds} --SplitIndex ${split}"
+        
+    done
 done
 
 master_submit="$output_job_dir/condor_submit_${special_name}.sh"
@@ -54,9 +66,9 @@ universe   = vanilla
 executable = $exe_file
 getenv     = TRUE
 request_memory = 64 GB
-log        = $output_job_dir/job_${name}.log
-output     = $output_job_dir/job_${name}.out
-error      = $output_job_dir/job_${name}.err
+log        = $output_job_dir/logs/job_${name}.log
+output     = $output_job_dir/logs/job_${name}.out
+error      = $output_job_dir/logs/job_${name}.err
 notification = never
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT

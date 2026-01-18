@@ -39,7 +39,8 @@ parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3bte
 parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
 parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
 parser.add_argument('--foldN', default=0, type=int)
-parser.add_argument('--Nfold', default=None, type=int, help = "Specify fold number for training or testing.")
+parser.add_argument('--Nfold', default=None, type=int, help = "Specify number of folds for training or testing.")
+parser.add_argument('--SplitIndex', default=None, type=int, help = "Specify split number for 3b training: 0-9.")
 
 args = parser.parse_args()
 
@@ -91,12 +92,14 @@ TrainRegion = args.TrainRegion
 TestRegion = args.TestRegion
 runType = args.runType
 
-
-
-
 if args.runType == "train-test" or args.runType == "train-only":
-    plot_dir =  f"{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
-    model_dir = f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
+    if args.TrainRegion == "3b":
+        SplitIndex = args.SplitIndex
+        plot_dir =  f"{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}_{SplitIndex}/"
+        model_dir = f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}_{SplitIndex}/"
+    else:
+        plot_dir =  f"{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
+        model_dir = f"{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
 
     os.makedirs(plot_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)

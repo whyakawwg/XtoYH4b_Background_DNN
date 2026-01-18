@@ -255,8 +255,8 @@ with open(log_filename1, "w") as f_log1:
                 ax5w.legend(new_handles + handles_rax5w, new_labels + labels_rax5w, loc='best', ncol=1, fontsize='x-small')
                 
                 
-                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_5Fold_Comparison_w.png", dpi=300, bbox_inches="tight")
-                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_5Fold_Comparison_w.pdf", bbox_inches="tight")
+                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_Fold_Comparison_w.png", dpi=300, bbox_inches="tight")
+                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_Fold_Comparison_w.pdf", bbox_inches="tight")
                 #print(f"  -> Saved plots to {output_dir}")
                 plt.close()
 
