@@ -2,7 +2,7 @@
 
 n_folds=10
 
-special_name="checkvalid_4b"
+special_name="jan15_4b"
 
 run_type="train-only" # Change the run type: "train-test", "train-only", "test-only"
 
@@ -17,9 +17,6 @@ input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_${special_name}"
 CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
 
 output_dir="${input_dir}/OnlyTrainBackgroundEstimation_condor"
-
-# If "train-only", isBalanceClass should be 1
-# If "train-test", isBalanceClass should be 0
 
 mkdir -p "$output_dir"
 

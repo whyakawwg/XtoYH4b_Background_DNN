@@ -2,17 +2,17 @@
 
 n_folds=10
 
-special_name="checkvalid_4b"
+special_name="MW_EventsWeight"
 
 run_type="train-only" # Change the run type: "train-test", "train-only", "test-only"
 
-train_region="4b" # Change the train region: "4b", "3b"
+train_region="3bHiggsMW" # Change the train region: "4b", "3b"
 
-test_region="4btest" # Change the test region: "4btest", "3btest", "3bHiggsMW"
+test_region="3bHiggsMW" # Change the test region: "4btest", "3btest", "3bHiggsMW"
 
 script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_training.py"
 
-input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_${special_name}"
+input_dir="/data/dust/user/wanghaoy/XtoYH4b/${special_name}"
 
 CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
 
@@ -31,12 +31,16 @@ cp "$script_dir" "$input_dir"
 
 declare -A jobs
 
-for i in $(seq 1 $n_folds); do
-    
-    job_key="DNN_${train_region}vs2b_${special_name}_Fold${i}}"
-    
-    jobs["$job_key"]="python3 fold_training.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --foldN ${i} --Nfold ${n_folds}"
-    
+for split in {0..4}; do
+
+    # Inner Loop: Iterate through the 10 Folds (1 to 10)
+    for i in $(seq 1 $n_folds); do
+        
+        job_key="DNN_${train_region}vs2b_${special_name}_Fold${i}_Split${split}"
+
+        jobs["$job_key"]="python3 fold_training_Weights.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --foldN ${i} --Nfold ${n_folds} --SplitIndex ${split}"
+        
+    done
 done
 
 master_submit="$output_job_dir/condor_submit_${special_name}.sh"

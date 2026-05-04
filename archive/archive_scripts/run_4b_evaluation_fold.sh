@@ -2,42 +2,34 @@
 
 n_folds=10
 
-special_name="checkvalid_4b"
+special_name="jan15_4b"
 
-run_type="train-only" # Change the run type: "train-test", "train-only", "test-only"
+run_type="test-only" # Change the run type: "train-test", "train-only", "test-only"
 
 train_region="4b" # Change the train region: "4b", "3b"
 
 test_region="4btest" # Change the test region: "4btest", "3btest", "3bHiggsMW"
 
-script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_training.py"
-
 input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_${special_name}"
+
+output_dir="${input_dir}/${test_region}_Quantiles_Evaluation"
+
+script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_4b_evaluation.py"
+
+plot_script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/plot_fold.py"
 
 CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
 
-output_dir="${input_dir}/OnlyTrainBackgroundEstimation_condor"
-
-# If "train-only", isBalanceClass should be 1
-# If "train-test", isBalanceClass should be 0
-
 mkdir -p "$output_dir"
-
-output_job_dir="${output_dir}/${train_region}/job3"
+output_job_dir="${output_dir}/job3"
 mkdir -p "$output_job_dir"
-mkdir -p "$output_job_dir"/logs
 
-cp "$script_dir" "$input_dir"
+cp "$script_dir" "$output_dir"
+cp "$plot_script_dir" "$output_dir"
 
 declare -A jobs
 
-for i in $(seq 1 $n_folds); do
-    
-    job_key="DNN_${train_region}vs2b_${special_name}_Fold${i}}"
-    
-    jobs["$job_key"]="python3 fold_training.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --foldN ${i} --Nfold ${n_folds}"
-    
-done
+jobs["Evaluation_${train_region}vs2b_${special_name}"]="python3 fold_4b_evaluation.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}"
 
 master_submit="$output_job_dir/condor_submit_${special_name}.sh"
 : > "$master_submit"
@@ -52,8 +44,9 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 cd $CMSSW_dir
 eval \`scramv1 runtime -sh\`
 
-cd $input_dir
+cd $output_dir
 ${jobs[$name]}
+python3 plot_fold.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}
 EOF
     chmod +x "$exe_file"
 
@@ -62,9 +55,9 @@ universe   = vanilla
 executable = $exe_file
 getenv     = TRUE
 request_memory = 64 GB
-log        = $output_job_dir/logs/job_${name}.log
-output     = $output_job_dir/logs/job_${name}.out
-error      = $output_job_dir/logs/job_${name}.err
+log        = $output_job_dir/job_${name}.log
+output     = $output_job_dir/job_${name}.out
+error      = $output_job_dir/job_${name}.err
 notification = never
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT

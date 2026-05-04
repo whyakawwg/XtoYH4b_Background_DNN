@@ -2,26 +2,23 @@
 
 n_folds=10
 
-special_name="TrainMW_3b" # Change the special name for this set of jobs
+special_name="split3b"
 
 run_type="test-only" # Change the run type: "train-test", "train-only", "test-only"
 
 train_region="3b" # Change the train region: "4b", "3b"
 
-test_region="3bHiggsMW" # Change the test region: "4btest", "3btest", "3bHiggsMW"
+test_region="3btest" # Change the test region: "4btest", "3btest", "3bHiggsMW"
 
-input_dir="/data/dust/user/wanghaoy/XtoYH4b/${special_name}"
+input_dir="/data/dust/user/wanghaoy/XtoYH4b/test_${special_name}"
 
-output_dir="${input_dir}/${test_region}_unroll"
+output_dir="${input_dir}/${test_region}_Quantiles_Evaluation"
 
-script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_unroll3b_evaluation_removeempty.py"
+script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/fold_3b_evaluation.py"
 
 plot_script_dir="/data/dust/user/wanghaoy/XtoYH4b/work_scripts/plot_fold.py"
 
 CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
-
-# If "train-only", isBalanceClass should be 1
-# If "train-test", isBalanceClass should be 0
 
 mkdir -p "$output_dir"
 output_job_dir="${output_dir}/job3"
@@ -32,9 +29,7 @@ cp "$plot_script_dir" "$output_dir"
 
 declare -A jobs
 
-jobs["Evaluation_${train_region}vs2b_${special_name}"]="python3 fold_unroll3b_evaluation_removeempty.py --YEAR 2024 --isScaling 1 --isBalanceClass 0 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}"
-
-
+jobs["Evaluation_${train_region}vs2b_${special_name}"]="python3 fold_3b_evaluation.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}"
 
 master_submit="$output_job_dir/condor_submit_${special_name}.sh"
 : > "$master_submit"
@@ -51,8 +46,7 @@ eval \`scramv1 runtime -sh\`
 
 cd $output_dir
 ${jobs[$name]}
-
-python3 plot_fold.py --YEAR 2024 --isScaling 1 --isBalanceClass 0 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}
+python3 plot_fold.py --YEAR 2024 --isScaling 1 --isBalanceClass 1 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold ${n_folds}
 EOF
     chmod +x "$exe_file"
 

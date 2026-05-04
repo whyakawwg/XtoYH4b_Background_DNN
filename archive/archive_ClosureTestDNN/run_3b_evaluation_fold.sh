@@ -6,7 +6,7 @@ special_name="TrainMW_3b" # Change the special name for this set of jobs
 
 run_type="test-only" # Change the run type: "train-test", "train-only", "test-only"
 
-train_region="3b" # Change the train region: "4b", "3b"
+train_region="3bHiggsMW" # Change the train region: "4b", "3b"
 
 test_region="3bHiggsMW" # Change the test region: "4btest", "3btest", "3bHiggsMW"
 
