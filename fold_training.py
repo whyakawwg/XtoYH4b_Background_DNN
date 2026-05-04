@@ -3,8 +3,6 @@ import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts")
-# import fold_functions
-# from fold_functions import *
 import fold_functions_ptcut
 from fold_functions_ptcut import *
 import numpy as np
