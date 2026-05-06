@@ -10,36 +10,21 @@ import mplhep as hep
 import array
 import os
 
-def plot_hist(scores, mask, label, color, linestyle="solid", weights=None):
+def plot_hist(scores, mask, label, color, linestyle="solid"):
     """Utility to draw one DNN histogram."""
     scores = np.asarray(scores).ravel()
     mask = np.asarray(mask).ravel() 
-    if weights is not None:
-        weights = np.asarray(weights).ravel()
-        plt.hist(
-            scores[mask],
-            bins=50,
-            range=(0, 1),
-            histtype='step',
-            linewidth=1.5,
-            label=label,
-            color=color,
-            linestyle=linestyle,
-            density=True,
-            weights=weights[mask]
-        )
-    else:
-        plt.hist(
-            scores[mask],
-            bins=50,
-            range=(0, 1),
-            histtype='step',
-            linewidth=1.5,
-            label=label,
-            color=color,
-            linestyle=linestyle,
-            density=True
-        )
+    plt.hist(
+        scores[mask],
+        bins=50,
+        range=(0, 1),
+        histtype='step',
+        linewidth=1.5,
+        label=label,
+        color=color,
+        linestyle=linestyle,
+        density=True
+    )
 
 def plotting(arr_3T, arr_2T, bins=None, var="MX", suffix="reweight", label_=["3T", "2T", "2T_w"], args=None):
     xlim = [bins[0], bins[-1]]
@@ -249,17 +234,18 @@ def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
     h2T_w.Delete()
 
 def build_binning_map(njets):
-    """
-    Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
-    """
     bin_edges      = np.linspace(0, 1, 51)
-
-    # mx_bin_edges   = np.array([110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
-    mx_bin_edges   = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
-
-    my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375, 
-                             450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
-    mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
+    # mx_bin_edges   = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,
+    #                            450,500,550,600,650,700,750,800,850,900,950,1000,
+    #                            1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
+    #                            2750,3000,3500,4000])
+    mx_bin_edges   = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,
+                                450,500,550,600,650,700,750,800,850,900,950,1000,
+                                1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,
+                                2750,3000,3500,4000,4500]) 
+    # my_bin_edges   = np.linspace(0, 1000, 51)
+    my_bin_edges = np.array([30,40,50,60,75,90,110,130,150,175,200,250,300,400,600,1000])
+    mh_bin_edges   = np.linspace(0, 300, 61)
     jet_mass_bin_edges = np.linspace(0, 100, 51)
     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
     eta_bin_edges  = np.linspace(-5, 5, 51)
@@ -310,9 +296,6 @@ def build_binning_map(njets):
     return bin_map
 
 def get_5fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/split_rootfile"):
-    """
-    For 5-fold, each fold uses 2 files for testing and the remaining 8 for training.
-    """
     if not (1 <= fold_n <= 5):
         raise ValueError(f"Fold number must be between 1 and 5. Received: {fold_n}")
 
@@ -335,9 +318,6 @@ def get_5fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/spli
     return train_files, test_files
 
 def get_10fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/split_rootfile"):
-    """
-    For 10-fold, each fold uses 1 file for testing and the remaining 9 for training.
-    """
     if not (1 <= fold_n <= 10):
         raise ValueError(f"Fold number must be between 1 and 10. Received: {fold_n}")
 
@@ -359,9 +339,6 @@ def get_10fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/spl
     return train_files, test_files
 
 def plot_training_results(history, plot_dir, args=None):
-    """
-    Plot training and validation loss and AUC curves from Keras history object.
-    """
     history_dict = history.history
     epochs = range(1, len(history_dict['loss']) + 1)
 
@@ -407,9 +384,6 @@ def fast_fill(hist, data, weights):
     hist.FillN(len(d_arr), d_arr, w_arr)
 
 def calculate_chi2(h_obs, h_exp, h_exp_up, h_exp_dn):
-    """
-    Calculate chi-squared between observed and expected histograms.
-    """
     chi2 = 0.0
     ndf = 0
     
@@ -435,9 +409,6 @@ def calculate_chi2(h_obs, h_exp, h_exp_up, h_exp_dn):
     return chi2, max(ndf - 1, 1)
 
 def get_chi2_root_method(h_data, h_nom, h_up, h_dn):
-    """
-    Use ROOT's built-in Chi2Test method.
-    """
     h_total_err = h_nom.Clone("h_total_err_for_chi2")
     
     n_bins = h_nom.GetNbinsX()
@@ -473,9 +444,6 @@ def get_fold_hists(file, var_name, n_folds, scale_factor=1.0):
     return fold_data
 
 def get_split_fold_hists(file, var_name, n_splits=5, n_folds=10, scale_factor=1.0):
-    """
-    Helper to load fold histograms for 5-fold case which has 5 splits. Returns a list of arrays, one per fold, containing the bin contents. Assumes histograms are named like {var_name}_hist_2b_split{split}_fold{fold}.
-    """
     fold_data = []
 
     for split in range(n_splits):
@@ -492,9 +460,6 @@ def get_split_fold_hists(file, var_name, n_splits=5, n_folds=10, scale_factor=1.
     return fold_data
 
 def check_h_nomerror_2b_staterror(file, var_name):
-    """
-    Only used when checking.
-    """
     h_nom = file.Get(f"{var_name}_hist_2b_w_mean")
     h_2b  = file.Get(f"{var_name}_hist_2b_mean")
 
@@ -544,7 +509,6 @@ def get_fold_errors(file, var_name, n_folds, TrainRegion="4b"):
     return ratio_errs
 
 def check_4b_2b_errors(file, var_name):
-    """Helper to check if 4b errors are smaller than 2b errors, which would be a sign of an issue since 4b has less statistics."""
     h_4b = file.Get(f"{var_name}_hist_4b_mean")
     h_2b = file.Get(f"{var_name}_hist_2b_mean")
 
@@ -587,36 +551,9 @@ def calculate_error_from_histograms(file, var_name, n_folds, TrainRegion="4b"):
         sys_sigma[i] = (q84 - q16) / 2.0
     return mean, sys_sigma
 
-def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegion="4b", NonClosureFracPath=None):
-    """
-    Currently the main function to get the errors. 
-    Returns:
-    - edges: bin edges
-    - y_mean: mean bin contents across folds (used as central value for chi2)
-    - y_3T: 3T histogram bin contents
-    - y_2T: 2T histogram bin contents
-
-    - scale_factor: factor by which histograms were scaled 
-    - chi2_val: chi2 value comparing 3T to the mean of folds with total error
-    - chi2_2b: chi2 value comparing 3T to the 2T histogram with only statistical error (for comparison)
-    - err_stat: array of statistical errors from the 2T histogram
-    - err_sys: array of systematic uncertainties derived from fold spread
-    - err_tot: total error combining statistical and systematic in quadrature
-    - err_nc: non-closure error if NonClosureFracPath is provided (only for 3bHMW)
-
-    """
-    # h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
-    # h_2T  = file.Get(f"{var_name}_hist_2b_mean")
-    # h_3T_ptr = file.Get(f"{var_name}_hist_{TrainRegion}_mean")
-    h_3T_ptr = file.Get(f"{var_name}_hist_4b_mean")
-    h_2T_ptr = file.Get(f"{var_name}_hist_2b_mean")
-
-    h_3T = h_3T_ptr.Clone()
-    h_2T = h_2T_ptr.Clone()
-
-    # Optional: Detach from the file so they persist even if file closes
-    h_3T.SetDirectory(0) 
-    h_2T.SetDirectory(0)
+def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegion="4b"):
+    h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
+    h_2T  = file.Get(f"{var_name}_hist_2b_mean")
 
     n_bins = h_3T.GetNbinsX()
 
@@ -629,7 +566,7 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
                 h_name = f"{var_name}_hist_2b_split{split}_fold{fold}"
                 h_fold = file.Get(h_name)
                 if not h_fold:
-                    print(f"Warning: Fold {fold} Split {split} not found for {var_name}")
+                    print(f"Warning: Fold {fold_idx+1} Split {split}not found for {var_name}")
                     continue                
                 content = [h_fold.GetBinContent(i) for i in range(1, n_bins + 1)]
                 fold_data.append(content)
@@ -645,17 +582,11 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
             fold_data.append(content)
 
     fold_array = np.array(fold_data)
-    if fold_array.size == 0:
-        raise ValueError(
-            f"No fold histograms found for '{var_name}' in TrainRegion='{TrainRegion}'. "
-            "Check histogram naming and available folds in the input ROOT file."
-        )
-
     y_mean = np.mean(fold_array, axis=0)
     q16 = np.percentile(fold_array, 16, axis=0)
     q84 = np.percentile(fold_array, 84, axis=0)
 
-    err_sys = (q84 - q16) / 2.0
+    y_sys = (q84 - q16) / 2.0
 
     scale_factor = 1.0
 
@@ -672,59 +603,25 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
             scale_factor = 1.0 / total_integral
             
             y_mean *= scale_factor
-            err_sys  *= scale_factor
+            y_sys  *= scale_factor
 
     err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
-
-    if NonClosureFracPath is not None:
-        nonclosure_factors = load_nonclosure_factor(var_name, n_bins, NonClosureFracPath)
-        err_nc = nonclosure_factors * y_mean
-        err_tot = np.sqrt(err_stat**2 + err_sys**2 + err_nc**2)
-    else:
-        err_nc = np.zeros_like(err_sys)
-    
-    err_tot = np.sqrt(err_stat**2 + err_sys**2 + err_nc**2)
-    err_tot_Nonc = np.sqrt(err_stat**2 + err_sys**2)
+    err_tot = np.sqrt(err_stat**2 + y_sys**2)
 
     h_total_err_for_chi2 = h_2T.Clone(f"{var_name}_total_err")
-    h_Nonc_err_for_chi2 = h_2T.Clone(f"{var_name}_fornonclosure_err")
     for i in range(n_bins):
         bin_idx = i + 1 
         h_total_err_for_chi2.SetBinContent(bin_idx, y_mean[i])
         h_total_err_for_chi2.SetBinError(bin_idx, err_tot[i])
-        h_Nonc_err_for_chi2.SetBinContent(bin_idx, y_mean[i])
-        h_Nonc_err_for_chi2.SetBinError(bin_idx, err_tot_Nonc[i])
 
     chi2_val = h_3T.Chi2Test(h_total_err_for_chi2, "WW CHI2/NDF")
     chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
-    chi2_Nonc = h_3T.Chi2Test(h_Nonc_err_for_chi2, "WW CHI2/NDF")
 
     edges = np.array([h_3T.GetBinLowEdge(i) for i in range(1, n_bins+2)])
     y_3T = np.array([h_3T.GetBinContent(i) for i in range(1, n_bins+1)])
     y_2T = np.array([h_2T.GetBinContent(i) for i in range(1, n_bins+1)])
 
-    # denom_2b_w = np.where(y_mean > 0, y_mean, 1e-10)
-    # denom_2b = np.where(y_2T > 0, y_2T, 1e-10)
-
-    # ratio_3b_2b = y_3T/ denom_2b # without transfer factor
-    # ratio_3b_2b_w = y_3T/ denom_2b_w # data/prediction
-
-    # ratio_err_tot   = np.divide(err_tot, denom_2b_w, out=np.zeros_like(err_tot), where=denom_2b_w > 0)
-    # ratio_err_stat  = np.divide(err_stat, denom_2b_w, out=np.zeros_like(err_stat), where=denom_2b_w > 0)
-    # ratio_err_sys   = np.divide(err_sys, denom_2b_w, out=np.zeros_like(err_sys), where=denom_2b_w > 0)
-
-    ratio_3b_2b = np.divide(y_3T, y_2T, out=np.zeros_like(y_3T), where=y_2T > 0) # without transfer factor
-    ratio_3b_2b_w = np.divide(y_3T, y_mean, out=np.zeros_like(y_3T), where=y_mean > 0) # data/prediction
-
-    ratio_err_tot   = np.divide(err_tot, y_mean, out=np.ones_like(err_tot), where=y_mean > 0)
-    ratio_err_stat  = np.divide(err_stat, y_mean, out=np.ones_like(err_stat), where=y_mean > 0)
-    ratio_err_sys   = np.divide(err_sys, y_mean, out=np.ones_like(err_sys), where=y_mean > 0)
-
-    if NonClosureFracPath is not None:
-        print(f"Non-closure uncertainty included in total error for chi2 calculation for {var_name}.")
-        return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_nc, nonclosure_factors, chi2_Nonc
-    else:
-        return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys
+    return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, y_sys
 
 def processing(file_list, args=None):
     """
@@ -756,9 +653,8 @@ def processing(file_list, args=None):
         )
         n_events = len(tree_arr["JetAK4_pt_1"]) 
 
-    elif args.runType == "test-only": 
-        #input_file = uproot.open(f"/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root")
-        input_file = uproot.open(file_list[0])
+    elif args.runType == "test-only":
+        input_file = uproot.open(f"/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root")
         tree = input_file["Tree_JetInfo"]
         n_events = tree.num_entries
         tree_arr = tree.arrays(columns, library="np", entry_stop=n_events)
@@ -792,9 +688,6 @@ def processing(file_list, args=None):
             print("Error: If training region is 4b, the test region can only be 4btest. Please check!")
             exit()
 
-    # elif args.TrainRegion == "3bHiggsMW":
-    #     sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & ((H_mass >= 90) & (H_mass <= 150)) 
-
     if args.TestRegion == "3bHiggsMW":
         common_mask = ((H_mass >= 90) & (H_mass <= 150)) # Note this is different from other regions
         sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask & min_mask
@@ -816,8 +709,6 @@ def processing(file_list, args=None):
     sig_idx = np.where(sig_mask)[0]
     bkg_idx = np.where(bkg_mask)[0]
 
-
-# split into 5 for 3b region
     if args.runType == "train-only" and args.TrainRegion == "3b":
         
         rng = np.random.default_rng(seed=42)
@@ -838,6 +729,7 @@ def processing(file_list, args=None):
         
         sig_idx_subset = sig_idx[start_idx : end_idx]
         sig_idx = sig_idx_subset
+
 
     if args.isBalanceClass == 1:
         n_min = min(len(sig_idx), len(bkg_idx))
@@ -920,13 +812,11 @@ def processing(file_list, args=None):
         n_jets_add = tree_arr["njets_add"][all_idx]
         HT_additional = tree_arr["HT_add"][all_idx]
 
-        event_weights = np.ones(int(n_events), dtype=float)
-    drop_cols = []
-
     combined_tree["dR_1"] = dR1_arr
     combined_tree["dR_2"] = dR2_arr
     dR1_plot = dR1_arr.copy()
     dR2_plot = dR2_arr.copy()
+
 
     if args.isMC == 1:
         event_weights = combined_tree["Event_weight"]
@@ -965,276 +855,9 @@ def processing(file_list, args=None):
             "dR2_plot": dR2_plot,
             "event_weights": event_weights,
             "BalanceClass": BalanceClass, 
-            "closure": closure,
+            "closure": closure            
         }
     else:
-        # aux_data = {}
-        aux_data = {"event_weights": event_weights}
+        aux_data = {}
 
     return feature_names, features, combined_tree, aux_data
-
-
-def get_hist_with_total_error_Mass(file, var_name, n_folds, normalize=True, TrainRegion="4b"):
-    h_3T_ptr = file.Get(f"{var_name}_hist_4b_mean")
-    h_2T_ptr = file.Get(f"{var_name}_hist_2b_mean")
-
-    h_3T = h_3T_ptr.Clone()
-    h_2T = h_2T_ptr.Clone()
-
-    h_3T.SetDirectory(0) 
-    h_2T.SetDirectory(0)
-
-    n_bins = h_3T.GetNbinsX()
-
-    fold_data = []
-    if TrainRegion == "3b":
-        n_splits = 5         
-        for split in range(n_splits):
-            for fold in range(1, n_folds + 1):
-                h_name = f"{var_name}_hist_2b_split{split}_fold{fold}"
-                h_fold = file.Get(h_name)
-                if not h_fold:
-                    continue                
-                content = [h_fold.GetBinContent(i) for i in range(1, n_bins + 1)]
-                fold_data.append(content)       
-    else:
-        for fold_idx in range(n_folds):
-            h_name = f"{var_name}_hist_2b_fold{fold_idx+1}"
-            h_fold = file.Get(h_name)            
-            if not h_fold:
-                continue            
-            content = [h_fold.GetBinContent(i) for i in range(1, n_bins + 1)]
-            fold_data.append(content)
-
-    fold_array = np.array(fold_data)
-    y_mean = np.mean(fold_array, axis=0)
-    q16 = np.percentile(fold_array, 16, axis=0)
-    q84 = np.percentile(fold_array, 84, axis=0)
-    y_sys = (q84 - q16) / 2.0
-
-    scale_factor = 1.0
-
-    if normalize:
-        if h_3T.Integral() > 0:
-            h_3T.Scale(1.0 / h_3T.Integral())
-        if h_2T.Integral() > 0:
-            h_2T.Scale(1.0 / h_2T.Integral())
-
-        total_integral = np.sum(y_mean)
-        if total_integral > 0:
-            scale_factor = 1.0 / total_integral
-            y_mean *= scale_factor
-            y_sys  *= scale_factor
-
-    err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
-    err_tot = np.sqrt(err_stat**2 + y_sys**2)
-
-    h_total_err_for_chi2 = h_2T.Clone(f"{var_name}_total_err")
-    for i in range(n_bins):
-        bin_idx = i + 1 
-        h_total_err_for_chi2.SetBinContent(bin_idx, y_mean[i])
-        h_total_err_for_chi2.SetBinError(bin_idx, err_tot[i])
-
-    chi2_val = h_3T.Chi2Test(h_total_err_for_chi2, "WW CHI2/NDF")
-    chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
-
-    edges = np.array([h_3T.GetBinLowEdge(i) for i in range(1, n_bins+2)])
-    widths = np.array([h_3T.GetBinWidth(i) for i in range(1, n_bins+1)])
-
-    y_3T = np.array([h_3T.GetBinContent(i) for i in range(1, n_bins+1)])
-    y_2T = np.array([h_2T.GetBinContent(i) for i in range(1, n_bins+1)])
-
-    y_mean   = y_mean / widths
-    y_3T     = y_3T / widths
-    y_2T     = y_2T / widths
-    err_tot  = err_tot / widths
-    err_stat = err_stat / widths
-    y_sys    = y_sys / widths
-
-    return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, y_sys
-
-
-def get_label_name(var):
-    """
-    Returns a formatted label string for a given variable name.
-    Explicitly mentions b-tag ordering to avoid confusion with pT ordering.
-    """
-    njets = 4 
-
-    sort_label = " (ordered by b-tag)" 
-
-    for i in range(1, njets + 1):
-        if var == f"JetAK4_mass_{i}":
-            return f"Jet {i} mass{sort_label}"
-        
-        if var == f"JetAK4_pt_{i}":
-            return f"Jet {i} pt{sort_label}"
-            
-        if var == f"JetAK4_eta_{i}":
-            return f"Jet {i} $\eta${sort_label}"
-            
-        if var == f"JetAK4_phi_{i}":
-            return f"Jet {i} $\phi${sort_label}"
-
-    if var == "Unrolled_MXMY":
-        return "Unrolled (MX, MY) value"
-    #     return "Higgs Candidate Mass [GeV]"
-        
-    # Default return if no match
-    return var
-
-
-
-
-def error_bands(nominal, error, prevent_negative=True):
-    """
-    Create error bands for plotting.
-    """
-    low = nominal - error
-    if prevent_negative:
-        low = np.maximum(low, 1e-10) 
-        
-    band_low  = np.append(low, low[-1])
-    band_high = np.append(nominal + error, (nominal + error)[-1])
-
-    return band_low, band_high
-
-def load_nonclosure_factor(var_name, n_bins, in_filename="nonclosure_factors.root"):
-    """Loads the saved fractional uncertainty to apply to a new region."""
-    f_in = ROOT.TFile.Open(in_filename, "READ")
-    if not f_in or f_in.IsZombie():
-        return None # Return None if file doesn't exist yet
-        
-    h_name = f"{var_name}_nonclosure_factor"
-    h_nonclosure = f_in.Get(h_name)
-    if not h_nonclosure:
-        f_in.Close()
-        return None
-        
-    frac_array = np.array([h_nonclosure.GetBinContent(i) for i in range(1, n_bins + 1)])
-    f_in.Close()
-    return frac_array
-
-def make_hist(suffix, values):
-    h_name = f"{var}_{suffix}"
-    h = ROOT.TH1F(h_name, h_name, nbins, edges_array)
-    for i in range(nbins):
-        h.SetBinContent(i+1, values[i])
-        h.SetBinError(i+1, 1e-6) 
-    return h
-
-def get_lumi(year):
-    lumi_map = {"2022": 7.98, "2022EE": 26.67, "2023": 11.24, "2023BPiX": 9.45, "2024": 109}
-    if year not in lumi_map:
-        print(f"Warning: Invalid year {year}. Defaulting to 109 (2024).")
-        return 109.0
-    return lumi_map[year]
-
-
-def get_unrolled_bins_for_my(target_my_bins, mx_bin_edges=None, my_bin_edges=None):
-    """
-    Given a list of target MY bins (1-based index), returns a dictionary mapping 
-    each MY bin to its corresponding 1D unrolled bin indices.
-    
-    Args:
-        target_my_bins (list of int): e.g., [6, 7, 8]
-        mx_bin_edges (np.array, optional): Edges for MX.
-        my_bin_edges (np.array, optional): Edges for MY.
-        
-    Returns:
-        dict: Format {my_bin_index: [list_of_unrolled_1d_indices]}
-    """
-    
-    # Default edges if none are provided
-    if mx_bin_edges is None:
-        mx_bin_edges = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
-    if my_bin_edges is None:
-        my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
-
-    n_my_bins = len(my_bin_edges) - 1
-    n_mx_bins = len(mx_bin_edges) - 1
-
-    # Initialize a dictionary for the target bins
-    mapping = {my_bin: [] for my_bin in target_my_bins}
-    
-    current_1d_bin = 1
-
-    # Apply physical unrolled bin logic
-    for my_idx in range(n_my_bins):
-        for mx_idx in range(n_mx_bins):
-            mx_upper = mx_bin_edges[mx_idx + 1]
-            my_lower = my_bin_edges[my_idx]
-
-            # The physical cut
-            if mx_upper > (my_lower + 125):
-                my_bin_1d = my_idx + 1  # 1-based ROOT bin index
-                
-                # If this is one of the bins we want, save the unrolled ID
-                if my_bin_1d in target_my_bins:
-                    mapping[my_bin_1d].append(current_1d_bin)
-                
-                current_1d_bin += 1
-
-    return mapping
-
-def get_all_bin_mappings(mx_bin_edges=None, my_bin_edges=None):
-    """
-    Builds a complete two-way mapping for 2D MX-MY bins to 1D unrolled bins.
-    
-    Returns a dictionary containing 5 lookup tables:
-      - 'my_to_unrolled': dict[int, list] -> {MY_bin: [unrolled_bins]}
-      - 'mx_to_unrolled': dict[int, list] -> {MX_bin: [unrolled_bins]}
-      - 'unrolled_to_my': dict[int, int]  -> {unrolled_bin: MY_bin}
-      - 'unrolled_to_mx': dict[int, int]  -> {unrolled_bin: MX_bin}
-      - 'unrolled_to_label': dict[int, str] -> {unrolled_bin: "MX..._MY..."}
-    """
-    
-    # Default edges
-    if mx_bin_edges is None:
-        mx_bin_edges = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
-    if my_bin_edges is None:
-        my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
-
-    n_my_bins = len(my_bin_edges) - 1
-    n_mx_bins = len(mx_bin_edges) - 1
-
-    # Initialize the dictionaries
-    my_to_unrolled = {i: [] for i in range(1, n_my_bins + 1)}
-    mx_to_unrolled = {i: [] for i in range(1, n_mx_bins + 1)}
-    unrolled_to_my = {}
-    unrolled_to_mx = {}
-    unrolled_to_label = {}
-    
-    current_1d_bin = 1
-
-    # Apply physical unrolled bin logic
-    for my_idx in range(n_my_bins):
-        for mx_idx in range(n_mx_bins):
-            mx_upper = mx_bin_edges[mx_idx + 1]
-            mx_lower = mx_bin_edges[mx_idx]
-            my_lower = my_bin_edges[my_idx]
-
-            # The physical cut
-            if mx_upper > (my_lower + 125):
-                my_bin_1d = my_idx + 1  # 1-based ROOT index
-                mx_bin_1d = mx_idx + 1  # 1-based ROOT index
-                
-                # Forward mappings (1D to Unrolled)
-                my_to_unrolled[my_bin_1d].append(current_1d_bin)
-                mx_to_unrolled[mx_bin_1d].append(current_1d_bin)
-                
-                # Reverse mappings (Unrolled to 1D)
-                unrolled_to_my[current_1d_bin] = my_bin_1d
-                unrolled_to_mx[current_1d_bin] = mx_bin_1d
-                unrolled_to_label[current_1d_bin] = f"MX{int(mx_lower)}_MY{int(my_lower)}"
-                
-                current_1d_bin += 1
-
-    # Return everything bundled in one master dictionary
-    return {
-        "my_to_unrolled": my_to_unrolled,
-        "mx_to_unrolled": mx_to_unrolled,
-        "unrolled_to_my": unrolled_to_my,
-        "unrolled_to_mx": unrolled_to_mx,
-        "unrolled_to_label": unrolled_to_label
-    }
