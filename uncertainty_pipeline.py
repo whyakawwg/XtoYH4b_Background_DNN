@@ -289,6 +289,7 @@ def _plot_unc_histograms_impl(
                         color_list.append(c);      alpha_list.append(0.5)
                     line_style_list.append("-.")
 
+        # Caller-supplied extra histograms (e.g. per-bin MY uncertainties)
         if extra_hists_fn is not None:
             extra = extra_hists_fn(f_in, var)
             if extra:
@@ -529,6 +530,7 @@ def add_decorrelated_nc_uncertainty(
                     # Apply NC variation only for this MX slice (excluding MY 6/7/8)
                     h_up.SetBinContent(b,   h_nc_up_unr.GetBinContent(b))
                     h_down.SetBinContent(b, h_nc_dn_unr.GetBinContent(b))
+                # else: keep cloned nominal (handles both target-MY and other-MX bins)
                 h_up.SetBinError(b, 0);  h_down.SetBinError(b, 0)
 
             f_out.cd()
@@ -538,9 +540,11 @@ def add_decorrelated_nc_uncertainty(
               f"(MY bins {target_my_bins} held at nominal).")
 
         # 3b. 3 × 14 = 42 100 % MY-bin uncertainties, decorrelated by MX bin
+        #     For each (my_bin, mx_bin) pair, only the intersection moves.
         for mb in target_my_bins:
             unrolled_for_my = my_to_unr.get(mb, [])
 
+            # Group those unrolled bins by their MX bin
             mx_to_unrolled_slice: dict[int, list] = {}
             for unr_bin in unrolled_for_my:
                 mx = unr_to_mx.get(unr_bin)
@@ -574,6 +578,8 @@ def add_decorrelated_nc_uncertainty(
     f_out.Close(); f_in.Close()
     print(f"\nAll decorrelated uncertainty histograms written to {output_filename}.")
 
+
+# Processing function: 
 def run_create_uncertainty_histograms(args):
     """
     Compute fold-based uncertainty histograms and optionally plot them.
@@ -585,9 +591,9 @@ def run_create_uncertainty_histograms(args):
 
     vars_to_plot = ["MX", "MY", "Unrolled_MXMY"]
 
-    signal_file = args.SignalFile
-    if not os.path.exists(signal_file):
-        print(f"Signal file not found: {signal_file}. Please provide a valid path using --SignalFile."); return 
+    # signal_file = args.SignalFile
+    # if not os.path.exists(signal_file):
+    #     print(f"Signal file not found: {signal_file}. Please provide a valid path using --SignalFile."); return 
 
     if args.TestRegion == "3bHiggsMW":
         NonClosureFactor_path = NONCLOSURE_FACTORS_FILE
@@ -604,7 +610,7 @@ def run_create_uncertainty_histograms(args):
     else:
         print(f"Unsupported TestRegion: {args.TestRegion}"); return
 
-    f_signal = ROOT.TFile(signal_file, "READ")
+    # f_signal = ROOT.TFile(signal_file, "READ")
     f_in  = ROOT.TFile(input_file,  "READ")
     f_out = ROOT.TFile(output_file, "RECREATE")
 
@@ -663,11 +669,11 @@ def run_create_uncertainty_histograms(args):
                 h_nc_down = _mh("2b_w_nc_down",  np.maximum(y_mean - err_nc, epsilon))
                 h_nc_up.Write(); h_nc_down.Write()
 
-                # direclty clone signal from the h_sig
-                h_signal = f_signal.Get(f"{var}_hist_signal")
-                if h_signal:
-                    h_signal.SetName(f"{var}_hist_signal")
-                    h_signal.Write()
+                # direclty clone signal from the h_signal
+                # h_signal = f_signal.Get(f"{var}_hist_signal")
+                # if h_signal:
+                #     h_signal.SetName(f"{var}_hist_signal")
+                #     h_signal.Write()
 
         if args.Plot == 1:
             for x_log in [False, True]:
@@ -685,7 +691,8 @@ def run_create_uncertainty_histograms(args):
                       f"Chi2 without NC uncertainty: {chi2_Nonc:.3f}")
 
 
-    f_signal.Close(); f_in.Close(); f_out.Close()
+    # f_signal.Close(); 
+    f_in.Close(); f_out.Close()
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -700,8 +707,8 @@ def build_parser():
     parser.add_argument("--Nfold",       default=None, type=int,
                         help="Number of folds (required for create_unc_hists).")
     
-    parser.add_argument("--SignalFile", default="OnlyPhysical_Signal.root",
-                        help="ROOT file containing the signal histogram to be included in Combine input.")
+    # parser.add_argument("--SignalFile", default=None, type=str, # Now the signal is added with Hist2Comb.py
+    #                     help="ROOT file containing the signal histogram to be included in Combine input.")
 
     parser.add_argument(
         "--Plot",
@@ -724,7 +731,7 @@ def build_parser():
             "create_unc_hists",               # hist_unroll3b main()
             "add_MY_binuncertainty",           # combined MY 100% up/down
             "add_separate_my_125_uncertainty", # per-bin MY 100% up/down
-            "add_decorrelated_nc_uncertainty", # full decorrelation
+            "add_decorrelated_nc_uncertainty", # NEW: full decorrelation
             "plot_uncertainty_histograms",     # standard plot
             "plot_separateMY_histograms",      # plot with per-MY-bin overlays
         ],
