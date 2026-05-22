@@ -787,7 +787,7 @@ def processing(file_list, args=None):
             exit()
 
     elif args.TrainRegion == "4b":
-        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask 
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask # training always in off-mass
         if args.TestRegion == "3btest" or args.TestRegion == "3bHiggsMW":
             print("Error: If training region is 4b, the test region can only be 4btest. Please check!")
             exit()
@@ -806,6 +806,11 @@ def processing(file_list, args=None):
     elif args.TestRegion == "4btest":
         sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask 
         closure = ["4b", "2b", "2b_w"]
+    elif args.TestRegion == "4bHiggsMW":
+        common_mask = ((H_mass >= 90) & (H_mass <= 150)) # Note this is different from other regions
+        sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2) & common_mask & min_mask
+        bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask & min_mask
+        closure = [r"4b_{Higgs\ MW}", "2b", "2b_w"]
     elif args.TestRegion == None:
         pass
 
@@ -815,7 +820,6 @@ def processing(file_list, args=None):
 
     sig_idx = np.where(sig_mask)[0]
     bkg_idx = np.where(bkg_mask)[0]
-
 
 # split into 5 for 3b region
     if args.runType == "train-only" and args.TrainRegion == "3b":
@@ -838,6 +842,29 @@ def processing(file_list, args=None):
         
         sig_idx_subset = sig_idx[start_idx : end_idx]
         sig_idx = sig_idx_subset
+    
+
+# Need to be deleted! Only for testing this time
+    if args.runType == "test-only" and args.TrainRegion == "3b":
+        
+        rng = np.random.default_rng(seed=42)
+        
+        rng.shuffle(sig_idx)
+        
+        n_total_3b = len(sig_idx)
+        chunk_size = int(n_total_3b / 5)
+        
+        start_idx = 1 * chunk_size
+        end_idx   = start_idx + chunk_size
+        
+            
+        print(f"[INFO] 3b Split Strategy: Using Split 1/5")
+        print(f"[INFO] Slice Range: {start_idx} to {end_idx} (Total 3b Pool: {n_total_3b})")
+        
+        sig_idx_subset = sig_idx[start_idx : end_idx]
+        sig_idx = sig_idx_subset
+
+
 
     if args.isBalanceClass == 1:
         n_min = min(len(sig_idx), len(bkg_idx))
@@ -1124,7 +1151,7 @@ def make_hist(suffix, values):
     return h
 
 def get_lumi(year):
-    lumi_map = {"2022": 7.98, "2022EE": 26.67, "2023": 11.24, "2023BPiX": 9.45, "2024": 109}
+    lumi_map = {"2022": 7.98, "2022EE": 26.7, "2023": 11.2, "2023BPiX": 9.45, "2024": 109, "2025": 111}
     if year not in lumi_map:
         print(f"Warning: Invalid year {year}. Defaulting to 109 (2024).")
         return 109.0
@@ -1238,3 +1265,57 @@ def get_all_bin_mappings(mx_bin_edges=None, my_bin_edges=None):
         "unrolled_to_mx": unrolled_to_mx,
         "unrolled_to_label": unrolled_to_label
     }
+
+
+def get_norm_scale_factor(file_path, train_region):
+    """
+    Blazing fast calculation of the global normalization scale factor (N_sig / N_bkg).
+    Only loads essential branches and stays fully vectorized.
+    """
+    
+    essential_columns = [
+        'JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
+        'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 'Hcand_mass'
+    ]
+
+    with uproot.open(file_path) as f:
+        tree = f["Tree_JetInfo"]
+        arr = tree.arrays(essential_columns, library="np")
+
+    h_mass = arr["Hcand_mass"]
+    min_mask = (h_mass > 50) & (h_mass < 300)
+    pt_mask = (arr["JetAK4_pt_1"] > 50) & (arr["JetAK4_pt_2"] > 50) & \
+              (arr["JetAK4_pt_3"] > 50) & (arr["JetAK4_pt_4"] > 50)
+
+    # Only use off-mass window, Higgs MW data is blinded!
+    mass_window = (h_mass < 90) | (h_mass > 150)
+
+    common_mask = min_mask & pt_mask & mass_window
+
+    wp1, wp2, wp3, wp4 = arr['JetAK4_btag_B_WP_1'], arr['JetAK4_btag_B_WP_2'], arr['JetAK4_btag_B_WP_3'], arr['JetAK4_btag_B_WP_4']
+
+    bkg_mask = common_mask & (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2)
+
+    if "3b" in train_region:
+        sig_mask = common_mask & (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2)
+    elif "4b" in train_region:
+        sig_mask = common_mask & (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 3) & (wp4 >= 2)
+    else:
+        raise ValueError(f"Unsupported or invalid TrainRegion: {train_region}")
+
+    n_bkg = np.sum(bkg_mask)
+    n_sig = np.sum(sig_mask)
+
+    if train_region == "3b":
+        n_sig = int(n_sig / 5) 
+
+    if n_bkg == 0:
+        print("[WARNING] Zero background events found. Scale factor cannot be computed.")
+        exit(1)
+
+    scale_factor = round(float(n_sig) / float(n_bkg), 4)
+    
+    print(f"[INFO] Calculated Scale Factor for {train_region}: {scale_factor:.4f} ({n_sig} sig / {n_bkg} bkg)")
+    return scale_factor
+
+        

@@ -82,7 +82,7 @@ def _build_th1(name, values, edges_array, err_per_bin=None, epsilon=1e-6):
 def save_non_closure_factor(
     var_name, edges, ratio_array, out_filename=NONCLOSURE_FACTORS_FILE, exclude_my_bins=None
 ):
-    """Save |ratio-1| as a TH1F to a ROOT file (bins in exclude_my_bins → 0)."""
+    """Save |ratio-1| as a TH1F to a ROOT file (0 for bins in exclude_my_bins)."""
     if exclude_my_bins is None:
         exclude_my_bins = []
 
@@ -103,20 +103,27 @@ def save_non_closure_factor(
     h = ROOT.TH1F(h_name, f"Non-closure fraction for {var_name}", nbins, edges_array)
     for i in range(nbins):
         root_bin = i + 1
-        frac = 0.0 if root_bin in bins_to_exclude else abs(ratio_array[i] - 1)
+
+        if root_bin in bins_to_exclude:
+            frac = 0.0
+        else:
+            frac = abs(ratio_array[i] - 1)
+            if frac >1.0:
+                frac = 1.0
         h.SetBinContent(root_bin, frac)
         h.SetBinError(root_bin, 0)
 
     f_out.cd()
     h.Write(h_name, ROOT.TObject.kOverwrite)
     f_out.Close()
+    print(f"Saved non-closure factors for {var_name} to {out_filename} (excluded bins: {bins_to_exclude})")
 
 
 # Plot the closure plots (Now with correct total uncertainty)
 def plot_evaluation(
     var, args, edges,
     y_4b, y_2b, y_model, err_tot, err_stat,
-    ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat,
+    ratio_4b_2b, ratio_4b_2b_w, ratio_err_tot, ratio_err_stat,
     chi2_val, chi2_2b,
     output_dirname=f"{dir_suffix}Closure_Plots",
     normalize_shapes=True,
@@ -131,8 +138,8 @@ def plot_evaluation(
         y_model = y_model / int_2bw
         err_tot = err_tot / int_2bw
         err_stat = err_stat / int_2bw
-        ratio_3b_2b   = y_4b / np.where(y_2b   > 0, y_2b,   1e-10)
-        ratio_3b_2b_w = y_4b / np.where(y_model > 0, y_model, 1e-10)
+        ratio_4b_2b   = y_4b / np.where(y_2b   > 0, y_2b,   1e-10)
+        ratio_4b_2b_w = y_4b / np.where(y_model > 0, y_model, 1e-10)
 
     hep.style.use("CMS")
     fig, (ax, rax) = plt.subplots(
@@ -169,9 +176,9 @@ def plot_evaluation(
     r_band_low, r_band_high = error_bands(ones, ratio_err_tot)
     r_band_stat_low, r_band_stat_high = error_bands(ones, ratio_err_stat)
     rax.fill_between(edges, r_band_low, r_band_high, step="post", color="gray", alpha=0.3)
-    rax.errorbar(x_centers, ratio_3b_2b,   fmt="o", color="red",
+    rax.errorbar(x_centers, ratio_4b_2b,   fmt="o", color="red",
                  label=rf"{labels[0]}/{labels[1]} $\chi^2/NDF={chi2_2b:.2f}$")
-    rax.errorbar(x_centers, ratio_3b_2b_w, fmt="o", color="blue",
+    rax.errorbar(x_centers, ratio_4b_2b_w, fmt="o", color="blue",
                  label=rf"{labels[0]}/{labels[2]} $\chi^2/NDF={chi2_val:.2f}$")
     rax.fill_between(edges, r_band_stat_low, r_band_stat_high, step="post",
                      facecolor="none", edgecolor="green", hatch="////", alpha=0.5)
@@ -273,7 +280,7 @@ def _plot_unc_histograms_impl(
         line_style_list  = ["-","-",":",":","--","--","--","--"]
         alpha_list       = [1.0, 1.0, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0]
 
-        if args.TestRegion == "3bHiggsMW":
+        if args.TestRegion == "3bHiggsMW" or args.TestRegion == "4bHiggsMW":
             for var in ["MX", "Unrolled_MXMY"]:
                 for suffix, c in [("nc_up","purple"), ("nc_down","purple")]:
                     h = f_in.Get(f"{var}_2b_w_{suffix}")
@@ -595,18 +602,18 @@ def run_create_uncertainty_histograms(args):
     # if not os.path.exists(signal_file):
     #     print(f"Signal file not found: {signal_file}. Please provide a valid path using --SignalFile."); return 
 
-    if args.TestRegion == "3bHiggsMW":
+    if args.TestRegion == "3bHiggsMW" or args.TestRegion == "4bHiggsMW":
         NonClosureFactor_path = NONCLOSURE_FACTORS_FILE
         SaveNonClosure = False
-        input_file  = "3bHiggsMW_OnlyPhysical.root"
-        output_file = f"{dir_suffix}Uncertainty_hists_OnlyPhysical.root"
+        input_file  = f"{args.TestRegion}_OnlyPhysical.root"
+        output_file = f"{args.TestRegion}_Uncertainty_hists_OnlyPhysical.root"
         if not os.path.exists(NonClosureFactor_path):
             print(f"Missing non-closure file: {NonClosureFactor_path}. Run 3btest first."); return
-    elif args.TestRegion == "3btest":
+    elif args.TestRegion == "3btest" or args.TestRegion == "4btest":
         SaveNonClosure = True
         NonClosureFactor_path = None
-        input_file  = "3btest_OnlyPhysical.root"
-        output_file = f"{dir_suffix}Uncertainty_3btest_hists_OnlyPhysical.root"
+        input_file  = f"{args.TestRegion}_OnlyPhysical.root"
+        output_file = f"{args.TestRegion}_Uncertainty_hists_OnlyPhysical.root"
     else:
         print(f"Unsupported TestRegion: {args.TestRegion}"); return
 
@@ -614,10 +621,15 @@ def run_create_uncertainty_histograms(args):
     f_in  = ROOT.TFile(input_file,  "READ")
     f_out = ROOT.TFile(output_file, "RECREATE")
 
+    if args.TestRegion in ["3bHiggsMW", "4bHiggsMW"]:
+        error_normalization = False
+    elif args.TestRegion in ["3btest", "4btest"]:
+        error_normalization = True
+
     for var in vars_to_plot:
         result_hist = get_hist_with_total_error(
             f_in, var, n_folds,
-            normalize=False,
+            normalize=error_normalization,
             TrainRegion=args.TrainRegion,
             NonClosureFracPath=NonClosureFactor_path,
         )
@@ -694,6 +706,44 @@ def run_create_uncertainty_histograms(args):
     # f_signal.Close(); 
     f_in.Close(); f_out.Close()
 
+def apply_bkg_norm_scalefactor(args):
+    """
+    Reads the base uncertainty histograms, applies the global yield scale factor 
+    to all 2b proxy histograms (nominal + systematic variations), and writes a new file.
+    """
+    input_file  = f"combine_noempty_input.root"
+    output_file = f"combine_noempty_input_Scaled.root"
+
+    f_in  = ROOT.TFile(input_file, "READ")
+    if f_in is None or f_in.IsZombie():
+        print(f"Error: Could not open {input_file}. Run create_unc_hists first!"); return
+
+    f_out = ROOT.TFile(output_file, "RECREATE")
+    
+    if args.TrainRegion == "3b":
+        scale = 0.1780
+    elif args.TrainRegion == "4b":
+        scale = 0.2331
+    print(f"Applying global scale factor {scale} to '{input_file}'...")
+
+    for key in f_in.GetListOfKeys():
+        obj = key.ReadObj()
+        if obj.InheritsFrom("TH1"):
+            f_out.cd()
+            h_clone = obj.Clone()
+            
+            # CRITICAL: Only scale the estimated 2b background!
+            if "2b_w_" in h_clone.GetName():
+                h_clone.Scale(scale)
+                
+            h_clone.Write()
+
+    f_in.Close()
+    f_out.Close()
+    print(f"Success! Scaled histograms saved to {output_file}")
+
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         description="Unified uncertainty pipeline for XtoYH4b background estimation."
@@ -703,7 +753,7 @@ def build_parser():
                         choices=["train-test", "train-only", "test-only"])
     parser.add_argument("--TrainRegion", default="4b", choices=["4b", "3b"])
     parser.add_argument("--TestRegion",  default=None,
-                        choices=[None, "4btest", "3btest", "3bHiggsMW"])
+                        choices=[None, "4btest", "3btest", "3bHiggsMW", "4bHiggsMW"],)
     parser.add_argument("--Nfold",       default=None, type=int,
                         help="Number of folds (required for create_unc_hists).")
     
@@ -734,6 +784,7 @@ def build_parser():
             "add_decorrelated_nc_uncertainty", # NEW: full decorrelation
             "plot_uncertainty_histograms",     # standard plot
             "plot_separateMY_histograms",      # plot with per-MY-bin overlays
+            "apply_bkg_norm_scalefactor"
         ],
     )
     return parser
@@ -755,7 +806,7 @@ def main():
 
     elif args.function == "add_decorrelated_nc_uncertainty":
         add_decorrelated_nc_uncertainty(
-            "Uncertainty_hists_OnlyPhysical.root",
+            f"{args.TestRegion}_Uncertainty_hists_OnlyPhysical.root",
             "combine_addDecorrelatedNC.root",
         )
 
@@ -763,20 +814,22 @@ def main():
         for x_log in [False, True]:
             plot_uncertainty_histograms(
                 "combine_noempty_input.root", args, vars_to_plot,
-                year_label=args.YEAR, data_lumi=109, normalize=True, x_scale_log=x_log,
+                year_label=args.YEAR, data_lumi=get_lumi(args.YEAR), normalize=True, x_scale_log=x_log,
             )
 
     elif args.function == "plot_separateMY_histograms":
         for x_log in [False, True]:
             plot_separateMY_uncertainty_histograms(
                 "combine_noempty_input.root", args, vars_to_plot,
-                year_label=args.YEAR, data_lumi=109, normalize=True, x_scale_log=x_log,
+                year_label=args.YEAR, data_lumi=get_lumi(args.YEAR), normalize=True, x_scale_log=x_log,
             )
         # Also plot just MX / MY with x-log
         plot_separateMY_uncertainty_histograms(
             "combine_noempty_input.root", args, vars_to_plot=["MX", "MY"],
-            year_label=args.YEAR, data_lumi=109, normalize=True, x_scale_log=True,
+            year_label=args.YEAR, data_lumi=get_lumi(args.YEAR), normalize=True, x_scale_log=True,
         )
+    elif args.function == "apply_bkg_norm_scalefactor":
+        apply_bkg_norm_scalefactor(args)
 
 
 main()
@@ -800,3 +853,21 @@ main()
 
 # Step 5 – produce final Combine input
 #   python3 convert_to_combine_input_DecoMX.py 
+
+
+
+
+# Step 1 – compute fold-based uncertainty histograms (4btest first, then 4bHiggsMW)
+#   python3 uncertainty_pipeline.py --YEAR 2024 --runType test-only --TrainRegion 4b --TestRegion 4btest --Nfold 10 --Plot 1 --CreateUncHist 1 --function create_unc_hists
+
+# Step 2 - add non-closure uncertainty
+#   python3 uncertainty_pipeline.py --YEAR 2024 --runType test-only --TrainRegion 4b --TestRegion 4bHiggsMW --Nfold 10 --Plot 0 --CreateUncHist 1 --function create_unc_hists
+
+# Step 3 – modify NC uncertainties (add MY-3bin uncertainty and modify old NC, deccorelate NC by MX bin, Unroll)
+#   python3 uncertainty_pipeline.py --YEAR 2024 --runType test-only --TrainRegion 4b --TestRegion 4bHiggsMW --function add_decorrelated_nc_uncertainty
+
+# Step 4 – hadd original uncertainty histograms, and new decorrelated NC histograms into a single Combine input file
+#   hadd combine_noempty_input.root 4bHiggsMW_Uncertainty_hists_OnlyPhysical.root combine_addDecorrelatedNC.root
+
+# Step 5 – apply background normalization scale factor
+#   python3 uncertainty_pipeline.py --YEAR 2024 --runType test-only --TrainRegion 4b --TestRegion 4bHiggsMW --function apply_bkg_norm_scalefactor

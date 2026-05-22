@@ -2,11 +2,8 @@ import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts") 
-# import fold_functions
-# from fold_functions import build_binning_map, processing, fast_fill
 import fold_functions_ptcut
-from fold_functions_ptcut import build_binning_map, processing, fast_fill
-
+from fold_functions_ptcut import build_binning_map, processing, fast_fill, get_lumi
 import numpy as np
 from tensorflow.keras.models import load_model
 import ROOT
@@ -15,8 +12,9 @@ import argparse
 import os
 import joblib
 
-
 ROOT.gErrorIgnoreLevel = ROOT.kWarning
+
+OUTPUT_FILENAME_suffix = "OnlyPhysical"
 
 parser = argparse.ArgumentParser(description="")
 
@@ -25,9 +23,9 @@ parser.add_argument('--isScaling', default=1, type=int, help = "Standard Scaling
 parser.add_argument('--isBalanceClass', default=1, type=int, help = "Balance class?")
 parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
 parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
-parser.add_argument('--runType', default="train-test", choices=["train-test", "train-only", "test-only"], type=str, help = "By default, train-test. Other options: train-only, test-only.")
+parser.add_argument('--runType', type=str, choices=["test-only"], help = "Options: test-only for evaluation.")
 parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'. Even test-only, need to specify train region for the model.")
-parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW' or None if train-only.")
+parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW", "4bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '4bHiggsMW (signal region)', '3btest', '3bHiggsMW' or None if train-only.")
 parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
 parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
 
@@ -44,23 +42,7 @@ if args.Nfold is None:
 
 binning_map = build_binning_map(njets=4)
 
-if args.runType == "train-test" or args.runType == "train-only":
-    print("Error: For k-fold, only test-only mode is available currently. Please check!")
-    exit(1)
-
-if args.YEAR == "2022":
-    data_lumi = 7.98
-elif args.YEAR == "2022EE":
-    data_lumi = 26.67
-elif args.YEAR == "2023":
-    data_lumi = 11.24
-elif args.YEAR == "2023BPiX":
-    data_lumi = 9.45
-elif args.YEAR == "2024":
-    data_lumi = 108.96
-else:
-    print("Please select a valid YEAR: '2022', '2022EE', '2023', '2023BPiX', '2024'")
-    exit(1)
+data_lumi = get_lumi(args.YEAR)
 
 if args.isScaling == 1:
     Scaling = "Scaling"
@@ -267,7 +249,8 @@ if args.runType == "test-only":
         binning_map["Unrolled_MXMY"] = list(range(n_valid_bins + 1))
 
     # output_filename = "OnlyPhysical_Unrolled_50Models.root"
-    output_filename = "ForPlot_OnlyPhysical_50Models.root"
+    output_filename = f"{args.TestRegion}_{OUTPUT_FILENAME_suffix}.root"
+
     f_out = ROOT.TFile(output_filename, "RECREATE")
     # if "Unrolled_MXMY" in binning_map:
     #     n_valid_bins = len(binning_map["Unrolled_MXMY"]) - 1

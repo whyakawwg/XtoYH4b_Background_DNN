@@ -31,9 +31,9 @@ parser.add_argument('--isScaling', default=1, type=int, help = "Standard Scaling
 parser.add_argument('--isBalanceClass', default=1, type=int, help = "Balance class?")
 parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
 parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
-parser.add_argument('--runType', default="train-test", choices=["train-test", "train-only", "test-only"], type=str, help = "By default, train-test. Other options: train-only, test-only.")
-parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'. Even test-only, need to specify train region for the model.")
-parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW' or None if train-only.")
+parser.add_argument('--runType', default="train-only", choices=["train-only"], type=str, help = "Options: train-only for training.")
+parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'.")
+parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW", "4bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '4bHiggsMW (signal region)', '3btest', '3bHiggsMW' or None if train-only.")
 parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
 parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
 parser.add_argument('--foldN', default=0, type=int)
@@ -46,19 +46,7 @@ isHcand_index_available = False
 
 binning_map = build_binning_map(njets=4)
 
-if args.YEAR == "2022":
-    data_lumi = 7.98
-elif args.YEAR == "2022EE":
-    data_lumi = 26.67
-elif args.YEAR == "2023":
-    data_lumi = 11.24
-elif args.YEAR == "2023BPiX":
-    data_lumi = 9.45
-elif args.YEAR == "2024":
-    data_lumi = 108.96
-else:
-    print("Please select a valid YEAR: '2022', '2022EE', '2023', '2023BPiX', '2024'")
-    exit(1)
+data_lumi = get_lumi(args.YEAR)
 
 if args.isScaling == 1:
     Scaling = "Scaling"
@@ -90,7 +78,7 @@ TrainRegion = args.TrainRegion
 TestRegion = args.TestRegion
 runType = args.runType
 
-if args.runType == "train-test" or args.runType == "train-only":
+if args.runType == "train-only":
     if args.TrainRegion == "3b":
         SplitIndex = args.SplitIndex
         plot_dir =  f"{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}_{SplitIndex}/"
@@ -249,6 +237,3 @@ if args.runType == "train-test" or args.runType == "train-only":
     plt.tight_layout()
     plt.savefig(os.path.join(plot_dir, "Feature_Correlation_Matrix.png"), dpi=300)
     plt.close()
-elif args.runType == "test-only":
-    pass
-
