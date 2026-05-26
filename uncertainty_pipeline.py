@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 
-sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts")
+sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN")
 import fold_functions_ptcut
 from fold_functions_ptcut import (
     get_hist_with_total_error,
@@ -26,6 +26,7 @@ import mplhep as hep
 import argparse
 import os
 import array
+import json
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -719,12 +720,17 @@ def apply_bkg_norm_scalefactor(args):
         print(f"Error: Could not open {input_file}. Run create_unc_hists first!"); return
 
     f_out = ROOT.TFile(output_file, "RECREATE")
-    
+  
+    with open(f"/data/dust/user/wanghaoy/XtoYH4b/Bkg_10fold_datafile/{args.YEAR}/metadata_{args.YEAR}.json") as f:
+    metadata = json.load(f)
+
+    # Use it based on your argparse input:
     if args.TrainRegion == "3b":
-        scale = 0.1780
+        norm_scale_factor = metadata["normalization_scale_factor_3b"]
     elif args.TrainRegion == "4b":
-        scale = 0.2331
-    print(f"Applying global scale factor {scale} to '{input_file}'...")
+        norm_scale_factor = metadata["normalization_scale_factor_4b"]
+
+    print(f"Applying global scale factor {norm_scale_factor} to '{input_file}'...")
 
     for key in f_in.GetListOfKeys():
         obj = key.ReadObj()
@@ -732,9 +738,9 @@ def apply_bkg_norm_scalefactor(args):
             f_out.cd()
             h_clone = obj.Clone()
             
-            # CRITICAL: Only scale the estimated 2b background!
+            # Only scale the estimated 2b background
             if "2b_w_" in h_clone.GetName():
-                h_clone.Scale(scale)
+                h_clone.Scale(norm_scale_factor)
                 
             h_clone.Write()
 

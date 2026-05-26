@@ -2,7 +2,7 @@
 import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
-sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts")
+sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN")
 import fold_functions_ptcut
 from fold_functions_ptcut import *
 import numpy as np
@@ -93,7 +93,7 @@ if args.runType == "train-only":
     print("Plot dir:", plot_dir)
     print("Model dir:", model_dir)
 
-    train_list, test_list = get_fold_filelists(foldN)
+    train_list, test_list = get_fold_filelists(foldN, base_path="/data/dust/user/wanghaoy/XtoYH4b/Bkg_10fold_datafile", YEAR=args.YEAR)
     feature_names_train, features_train, combined_tree_train, aux_data_train = processing(train_list, args=args)
     feature_names_test, features_test, combined_tree_test, aux_data_test = processing(test_list, args=args)
     label_name = "signal"

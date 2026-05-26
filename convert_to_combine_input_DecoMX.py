@@ -6,14 +6,15 @@ import ROOT
 SIGNAL_NAME = "NMSSM_XtoYHto4B_MX-1000_MY-150_TuneCP5_13p6TeV_madgraph-pythia8"
 YEAR = "2024"
 # INPUT_FILE = "combine_inclusive_bkg.root"
-INPUT_FILE = "combine_noempty_input.root"
-OUTPUT_FILE = f"combine_input_XYH4b_{YEAR}_VR.root"
+INPUT_FILE = "combine_noempty_input_Scaled.root"
+# OUTPUT_FILE = f"combine_input_XYH4b_{YEAR}_VR.root"
+OUTPUT_FILE = f"Output_Background_{YEAR}.root"
 
 MAPPING = {
-    "MX":          "h_MX_Comb_3_3_2_2_Inclusive", # 3322 for 3b, 3332 for 4b
-    "MY":          "h_MY_Comb_3_3_2_2_Inclusive",
-    "Unrolled_MXMY": "h_MX_MY_Comb_3_3_2_2_Inclusive"
-    # "Unrolled_Kinematic_Index": "h_MX_MY_Comb_3_3_2_2_Inclusive"
+    "MX":          "h_MX_Comb_3_3_3_2_Inclusive_mHcut", # 3322 for 3b, 3332 for 4b
+    "MY":          "h_MY_Comb_3_3_3_2_Inclusive_mHcut",
+    "Unrolled_MXMY": "h_MX_MY_Comb_3_3_3_2_Inclusive_mHcut"
+    # "Unrolled_Kinematic_Index": "h_MX_MY_Comb_3_3_2_2_Inclusive_mHcut"
 }
 
 def convert():
@@ -76,10 +77,10 @@ def convert():
                     h_sys.SetName(f"Inclusive_Bkg{new_sfx}")
                     h_sys.Write()
 
-        h_sig = old_file.Get(f"{prefix}_hist_signal")
-        if h_sig:
-            h_sig.SetName(SIGNAL_NAME)
-            h_sig.Write()
+        # h_sig = old_file.Get(f"{prefix}_hist_signal")
+        # if h_sig:
+        #     h_sig.SetName(SIGNAL_NAME)
+        #     h_sig.Write()
 
     new_file.Close()
     old_file.Close()

@@ -309,32 +309,32 @@ def build_binning_map(njets):
 
     return bin_map
 
-def get_5fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/split_rootfile"):
-    """
-    For 5-fold, each fold uses 2 files for testing and the remaining 8 for training.
-    """
-    if not (1 <= fold_n <= 5):
-        raise ValueError(f"Fold number must be between 1 and 5. Received: {fold_n}")
+# def get_5fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/split_rootfile"):
+#     """
+#     For 5-fold, each fold uses 2 files for testing and the remaining 8 for training.
+#     """
+#     if not (1 <= fold_n <= 5):
+#         raise ValueError(f"Fold number must be between 1 and 5. Received: {fold_n}")
 
-    all_indices = list(range(0, 10))
-    start_num = (fold_n - 1) * 2 
-    test_indices = [start_num, start_num + 1]
+#     all_indices = list(range(0, 10))
+#     start_num = (fold_n - 1) * 2 
+#     test_indices = [start_num, start_num + 1]
 
-    train_files = []
-    test_files = []
+#     train_files = []
+#     test_files = []
 
-    for i in all_indices:
-        # Construct the full file path
-        file_path = os.path.join(base_path, f"Tree_Data_Parking_{i}.root")
+#     for i in all_indices:
+#         # Construct the full file path
+#         file_path = os.path.join(base_path, f"Tree_Data_Parking_{i}.root")
         
-        if i in test_indices:
-            test_files.append(file_path)
-        else:
-            train_files.append(file_path)
+#         if i in test_indices:
+#             test_files.append(file_path)
+#         else:
+#             train_files.append(file_path)
 
-    return train_files, test_files
+#     return train_files, test_files
 
-def get_10fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/split_rootfile"):
+def get_10fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/Bkg_10fold_datafile", YEAR=2024):
     """
     For 10-fold, each fold uses 1 file for testing and the remaining 9 for training.
     """
@@ -346,15 +346,19 @@ def get_10fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/spl
 
     train_files = []
     test_files = []
+    year_path = base_path + f"/{YEAR}"
 
     for i in all_indices:
-        # Construct the full file path
-        file_path = os.path.join(base_path, f"Tree_Data_Parking_{i}.root")
+   
+        file_path = os.path.join(year_path, f"Tree_Data_Parking_{YEAR}_{i}.root")
         
         if i == test_index:
             test_files.append(file_path)
+            print(f"Fold {fold_n}: Test file: {file_path}")
         else:
             train_files.append(file_path)
+            print(f"Fold {fold_n}: Train file: {file_path}")
+
 
     return train_files, test_files
 
@@ -764,7 +768,7 @@ def processing(file_list, args=None):
         tree_arr = tree.arrays(columns, library="np", entry_stop=n_events)
 
     else:
-        print("For k-fold, train-test is not available yet.")
+        print("Enter valid run type: train-only or test-only.")
         exit(1)
 
     wp1 = tree_arr["JetAK4_btag_B_WP_1"]
@@ -863,7 +867,7 @@ def processing(file_list, args=None):
         
         sig_idx_subset = sig_idx[start_idx : end_idx]
         sig_idx = sig_idx_subset
-
+# ==========================================================
 
 
     if args.isBalanceClass == 1:
@@ -941,7 +945,7 @@ def processing(file_list, args=None):
     else:
         Scaling = "NoScaling"
 
-    if args.runType == "train-test" or args.runType == "test-only":
+    if args.runType == "test-only":
         MH = tree_arr["Hcand_mass"][all_idx]
         MY = tree_arr["Ycand_mass"][all_idx]
         n_jets_add = tree_arr["njets_add"][all_idx]

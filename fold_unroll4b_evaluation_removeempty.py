@@ -1,7 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
-sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/work_scripts") 
+sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN") 
 import fold_functions_ptcut
 from fold_functions_ptcut import build_binning_map, processing, fast_fill, get_lumi
 import numpy as np
@@ -55,9 +55,9 @@ else:
     BalanceClass = "NoBalanceClass"
 
 if args.runType == "test-only":
-
-    feature_names, features, combined_tree, aux_data = processing(['/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root'], args=args)
-
+    fulldata_path = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/" 
+    feature_names, features, combined_tree, aux_data = processing([fulldata_path + "Tree_Data_Parking.root"], args=args)
+  
     features_raw = features.copy()
 
     BalanceClass  = aux_data["BalanceClass"]
