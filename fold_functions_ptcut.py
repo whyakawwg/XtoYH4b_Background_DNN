@@ -125,7 +125,7 @@ def plotting(arr_3T, arr_2T, bins=None, var="MX", suffix="reweight", label_=["3T
     ax.legend(handles_ax + handles_rax, labels_ax + labels_rax)
 
     # outputs
-    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
+    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}/MODEL_{foldN}/"
     os.makedirs(out_dir, exist_ok=True)
     plt.savefig(f"{out_dir}/{var}_{suffix}.png", dpi=300, bbox_inches="tight")
     plt.savefig(f"{out_dir}/{var}_{suffix}.pdf", bbox_inches="tight")
@@ -165,7 +165,7 @@ def plot_variable_correlation(df, vars_to_plot, title="Variable Correlation Matr
         square=True, 
         cbar_kws={"shrink": 0.75})
     plt.title(title)
-    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/"
+    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}/MODEL_{foldN}/"
     os.makedirs(out_dir, exist_ok=True)
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, f"{title.replace(' ', '_')}.png"), dpi=300)
@@ -238,7 +238,7 @@ def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
     plt.ylabel(varY)
     plt.title(f"2D Closure: {varX} vs {varY}")
 
-    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}_Nov27/MODEL_{foldN}/2D_maps"
+    out_dir = f"{args.YEAR}/{args.TestRegion}/DNN_reweighting_plots/DNN_reweighting_plots_{Scaling}_{BalanceClass}/MODEL_{foldN}/2D_maps"
     os.makedirs(out_dir, exist_ok=True)
 
     plt.savefig(f"{out_dir}/{suffix}.png", dpi=300, bbox_inches="tight")

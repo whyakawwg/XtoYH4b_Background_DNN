@@ -91,7 +91,7 @@ if args.runType == "test-only":
 
     # n_splits = 5 
     
-    base_model_dir = f"../{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{'Scaling' if args.isScaling else 'NoScaling'}_BalanceClass_Nov27/"
+    base_model_dir = f"../{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{'Scaling' if args.isScaling else 'NoScaling'}_BalanceClass/"
     # print(f"Starting Grand Ensemble Prediction for {n_splits} splits x {n_folds} folds...")
     
     all_fold_scores = []
@@ -100,7 +100,7 @@ if args.runType == "test-only":
     model_metadata = [] 
 
     # for split in range(n_splits):
-    if args.TestRegion == "4btest":
+    if args.TestRegion == "4btest" or args.TestRegion == "4bHiggsMW":
         for fold in range(1, n_folds + 1):
             fold_dir = os.path.join(base_model_dir, f"MODEL_{fold}")
             

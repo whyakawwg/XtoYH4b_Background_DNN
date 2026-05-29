@@ -606,17 +606,18 @@ def run_create_uncertainty_histograms(args):
     if args.TestRegion == "3bHiggsMW" or args.TestRegion == "4bHiggsMW":
         NonClosureFactor_path = NONCLOSURE_FACTORS_FILE
         SaveNonClosure = False
-        input_file  = f"{args.TestRegion}_OnlyPhysical.root"
-        output_file = f"{args.TestRegion}_Uncertainty_hists_OnlyPhysical.root"
         if not os.path.exists(NonClosureFactor_path):
             print(f"Missing non-closure file: {NonClosureFactor_path}. Run 3btest first."); return
+    
     elif args.TestRegion == "3btest" or args.TestRegion == "4btest":
         SaveNonClosure = True
         NonClosureFactor_path = None
-        input_file  = f"{args.TestRegion}_OnlyPhysical.root"
-        output_file = f"{args.TestRegion}_Uncertainty_hists_OnlyPhysical.root"
+
     else:
         print(f"Unsupported TestRegion: {args.TestRegion}"); return
+    
+    input_file  = f"../{args.TestRegion}_evaluation/{args.TestRegion}_OnlyPhysical.root"
+    output_file = f"{args.TestRegion}_Uncertainty_hists_OnlyPhysical.root"
 
     # f_signal = ROOT.TFile(signal_file, "READ")
     f_in  = ROOT.TFile(input_file,  "READ")
@@ -699,9 +700,9 @@ def run_create_uncertainty_histograms(args):
                                        ratio_err_nonclosure, chi2_Nonc,
                                        normalize_shapes=True, x_scale_log=x_log)
 
-            if not SaveNonClosure:
-                print(f"Chi2 for {var}: {chi2_val:.3f}  |  "
-                      f"Chi2 without NC uncertainty: {chi2_Nonc:.3f}")
+            # if not SaveNonClosure:
+                # print(f"Chi2 for {var}: {chi2_val:.3f}  |  "
+                #       f"Chi2 without NC uncertainty: {chi2_Nonc:.3f}")
 
 
     # f_signal.Close(); 
@@ -713,7 +714,7 @@ def apply_bkg_norm_scalefactor(args):
     to all 2b proxy histograms (nominal + systematic variations), and writes a new file.
     """
     input_file  = f"combine_noempty_input.root"
-    output_file = f"combine_noempty_input_Scaled.root"
+    output_file = f"combine_noempty_input_Scaled_{args.YEAR}.root"
 
     f_in  = ROOT.TFile(input_file, "READ")
     if f_in is None or f_in.IsZombie():
@@ -722,7 +723,7 @@ def apply_bkg_norm_scalefactor(args):
     f_out = ROOT.TFile(output_file, "RECREATE")
   
     with open(f"/data/dust/user/wanghaoy/XtoYH4b/Bkg_10fold_datafile/{args.YEAR}/metadata_{args.YEAR}.json") as f:
-    metadata = json.load(f)
+        metadata = json.load(f)
 
     # Use it based on your argparse input:
     if args.TrainRegion == "3b":
