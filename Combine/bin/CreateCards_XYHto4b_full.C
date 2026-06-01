@@ -144,29 +144,35 @@ int main(int argc, char **argv) {
   //systematic uncertainty//
   
   vector<string> SystNames = {
-	 "JES_AbsoluteStat", 
-	 "JES_PileUpPtRef",
-	 "JES_RelativeJEREC1", "JES_RelativeJEREC2", 
-	 "JES_RelativePtEC1", "JES_RelativePtEC2", 
-	 "JES_RelativeSample", "JES_RelativeStatEC", "JES_RelativeStatFSR", 
-	 "JES_TimePtEta",
+    //  JES and JER been decorrelated by year
+	//  "JES_AbsoluteStat", 
+	//  "JES_RelativeJEREC1", "JES_RelativeJEREC2", 
+	//  "JES_RelativePtEC1", "JES_RelativePtEC2", 
+	//  "JES_RelativeSample", "JES_RelativeStatEC", "JES_RelativeStatFSR", 
+	//  "JES_TimePtEta",
 	//  "JES_Total",
+    // "JER",
+
+    // Correlated uncertainties across eras
 	 "PU",
     //  "LHEScale_muR","LHEScale_muF",
-	 "LHEScale","LHEPDF","LHEAlphaS","PS_ISR","PS_FSR"
-    // "JER",
-    // "JES_AbsoluteMPFBias", "JES_AbsoluteScale", "JES_FlavorQCD", "JES_Fragmentation",
-    // "JES_PileUpDataMC",  "JES_PileUpPtBB", "JES_PileUpPtEC1", "JES_PileUpPtEC2", 
-    // "JES_RelativeFSR", "JES_RelativePtBB", "JES_RelativeBal", 
-    // "JES_SinglePionECAL", "JES_SinglePionHCAL",
+	 "LHEScale","LHEPDF","LHEAlphaS","PS_ISR","PS_FSR",
+
+    // Correlated JES uncertainties across eras
+    "JES_AbsoluteMPFBias", "JES_AbsoluteScale", "JES_FlavorQCD", "JES_Fragmentation",
+    "JES_PileUpPtRef",
+    "JES_PileUpDataMC",  "JES_PileUpPtBB", "JES_PileUpPtEC1", "JES_PileUpPtEC2", 
+    "JES_RelativeFSR", "JES_RelativePtBB", "JES_RelativeBal", 
+    "JES_SinglePionECAL", "JES_SinglePionHCAL",
 
   };
 
   vector<string> ErasDecoSystNames = {
-    "JER", "JES_AbsoluteMPFBias", "JES_AbsoluteScale", "JES_FlavorQCD", "JES_Fragmentation",
-    "JES_PileUpDataMC",  "JES_PileUpPtBB", "JES_PileUpPtEC1", "JES_PileUpPtEC2", 
-    "JES_RelativeFSR", "JES_RelativePtBB", "JES_RelativeBal", 
-    "JES_SinglePionECAL", "JES_SinglePionHCAL"
+    "JER",
+    "JES_AbsoluteStat", "JES_RelativeJEREC1", "JES_RelativeJEREC2",
+    "JES_RelativePtEC1", "JES_RelativePtEC2", 
+    "JES_RelativeSample", "JES_RelativeStatEC", "JES_RelativeStatFSR",
+    "JES_TimePtEta",
   };
 
   for (string& syst : ErasDecoSystNames) {

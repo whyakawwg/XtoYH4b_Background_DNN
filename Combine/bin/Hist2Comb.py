@@ -200,6 +200,7 @@ signals = signals_filtered
 backgrounds = ["TT","ST","Zto2Q","Wto2Q","Diboson","QCD","SingleH","DoubleH" ]
 
 signal_systematic_uncs = [
+	 "JER",    
 	 "JES_AbsoluteStat", "JES_AbsoluteScale","JES_AbsoluteMPFBias", 
 	 "JES_FlavorQCD", "JES_Fragmentation", 
 	 "JES_PileUpDataMC",  "JES_PileUpPtBB", "JES_PileUpPtEC1", "JES_PileUpPtEC2", 
@@ -209,17 +210,18 @@ signal_systematic_uncs = [
 	 "JES_RelativeBal", "JES_RelativeSample", "JES_RelativeStatEC", "JES_RelativeStatFSR", 
 	 "JES_SinglePionECAL", "JES_SinglePionHCAL","JES_TimePtEta",
 	#  "JES_Total",
-	 "JER",
+
 	 "PU",
-	 "LHEScale","LHEPDF","LHEAlphaS","PS_ISR","PS_FSR"
+	 "LHEScale","LHEPDF","LHEAlphaS","PS_ISR","PS_FSR",
     #  "LHEScale_muR","LHEScale_muF",
 ]
 
 signal_systematic_eras_decorrelated = [
-    "JER", "JES_AbsoluteMPFBias", "JES_AbsoluteScale", "JES_FlavorQCD", "JES_Fragmentation",
-    "JES_PileUpDataMC",  "JES_PileUpPtBB", "JES_PileUpPtEC1", "JES_PileUpPtEC2", 
-    "JES_RelativeFSR", "JES_RelativePtBB", "JES_RelativeBal", 
-    "JES_SinglePionECAL", "JES_SinglePionHCAL"
+    "JER",    
+    "JES_AbsoluteStat", "JES_RelativeJEREC1", "JES_RelativeJEREC2",
+    "JES_RelativePtEC1", "JES_RelativePtEC2", 
+    "JES_RelativeSample", "JES_RelativeStatEC", "JES_RelativeStatFSR",
+    "JES_TimePtEta",
 ]
 
 
