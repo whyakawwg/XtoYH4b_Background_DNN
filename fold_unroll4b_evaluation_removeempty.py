@@ -55,8 +55,22 @@ else:
     BalanceClass = "NoBalanceClass"
 
 if args.runType == "test-only":
-    fulldata_path = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/" 
-    feature_names, features, combined_tree, aux_data = processing([fulldata_path + "Tree_Data_Parking.root"], args=args)
+    if args.YEAR == "2024" or args.YEAR == "2025":
+        filename_Tree = "Tree_Data_Parking.root"
+    else: 
+        filename_Tree = "Tree_Data.root"
+
+    if args.YEAR == "2022Full":
+        filename_2022 = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2022/Tree_Data.root" 
+        filename_2022EE = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2022EE/Tree_Data.root" 
+        feature_names, features, combined_tree, aux_data = processing([filename_2022, filename_2022EE], args=args)
+    elif args.YEAR == "2023Full":
+        filename_2022 = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2023/Tree_Data.root" 
+        filename_2022EE = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2023BPix/Tree_Data.root" 
+        feature_names, features, combined_tree, aux_data = processing([filename_2022, filename_2022EE], args=args)
+    else:
+        fulldata_path = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/" 
+        feature_names, features, combined_tree, aux_data = processing([fulldata_path + filename_Tree], args=args)
   
     features_raw = features.copy()
 

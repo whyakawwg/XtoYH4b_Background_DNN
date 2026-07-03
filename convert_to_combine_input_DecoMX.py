@@ -13,9 +13,9 @@ INPUT_FILE = f"combine_noempty_input_Scaled_{YEAR}.root"
 OUTPUT_FILE = f"Output_Background_{YEAR}.root"
 
 MAPPING = {
-    "MX":          "h_MX_Comb_3_3_3_2_Inclusive_mHcut", # 3322 for 3b, 3332 for 4b
-    "MY":          "h_MY_Comb_3_3_3_2_Inclusive_mHcut",
-    "Unrolled_MXMY": "h_MX_MY_Comb_3_3_3_2_Inclusive_mHcut"
+    "MX":          "h_MaxScore_MX_Comb_3_3_3_2_Inclusive_mHcut", # 3322 for 3b, 3332 for 4b
+    "MY":          "h_MaxScore_MY_Comb_3_3_3_2_Inclusive_mHcut",
+    "Unrolled_MXMY": "h_MaxScore_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut"
     # "Unrolled_Kinematic_Index": "h_MX_MY_Comb_3_3_2_2_Inclusive_mHcut"
 }
 
@@ -50,8 +50,7 @@ def convert():
             if prefix == "MY":
                 # sys_map.append(("_2b_w_mybin_up", "_MY125Bin_UncertaintyUp"))
                 # sys_map.append(("_2b_w_mybin_down", "_MY125Bin_UncertaintyDown"))
-                sys_map.append(("_2b_w_mybin_6_up", f" _MY125Bin6_Uncertainty
-                Up"))
+                sys_map.append(("_2b_w_mybin_6_up", f"_MY125Bin6_Uncertainty_{args.YEAR}Up"))
                 sys_map.append(("_2b_w_mybin_6_down", f"_MY125Bin6_Uncertainty_{args.YEAR}Down"))
                 sys_map.append(("_2b_w_mybin_7_up", f"_MY125Bin7_Uncertainty_{args.YEAR}Up"))
                 sys_map.append(("_2b_w_mybin_7_down", f"_MY125Bin7_Uncertainty_{args.YEAR}Down"))

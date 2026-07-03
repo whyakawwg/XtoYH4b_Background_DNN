@@ -7,12 +7,12 @@ import numpy as np
 import json
 import argparse
 
-def calculate_and_save_norm_scale_metadata(file_path, output_json):
+def calculate_and_save_norm_scale_metadata(file_paths, output_json, year_label):
     """
     Blazing fast calculation of the global normalization scale factors.
     Calculates both 3b and 4b in a single pass over the arrays.
     """
-    print("[INFO] Calculating normalization scale factors via uproot...")
+    print(f"[INFO] Calculating normalization scale factors for {year_label} via uproot...")
     
     essential_columns = [
         'JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
@@ -58,7 +58,7 @@ def calculate_and_save_norm_scale_metadata(file_path, output_json):
     print(f"[INFO] 4b Normalization Scale Factor: {sf_4b:.5f} (using {n_sig_4b} events)")
 
     metadata = {
-        "year": YEAR,
+        "year": year_label,
         "n_events_total": len(h_mass),
         "yield_2b_off_mass": int(n_bkg),
         "yield_3b_off_mass": int(n_sig_3b),
@@ -74,25 +74,24 @@ def calculate_and_save_norm_scale_metadata(file_path, output_json):
 
 
 def write_fold(args):
-    fold_id, indices = args
+    fold_id, indices, file_paths, output_dir, year = args
     
-    # Suppress PyROOT welcome message per-thread
     ROOT.gErrorIgnoreLevel = ROOT.kWarning 
 
-    infile = ROOT.TFile.Open(INPUT_FILE)
-    tree = infile.Get("Tree_JetInfo")
+    chain = ROOT.TChain("Tree_JetInfo")
+    for path in file_paths:
+        chain.Add(path)
 
-    out_path = f"{OUTPUT_DIR}/Tree_Data_Parking_{YEAR}_{fold_id}.root"
+    out_path = f"{output_dir}/Tree_Data_Parking_{year}_{fold_id}.root"
     outfile = ROOT.TFile(out_path, "RECREATE")
-    outtree = tree.CloneTree(0)
+    outtree = chain.CloneTree(0)
 
     for idx in indices:
-        tree.GetEntry(idx)
+        chain.GetEntry(idx)
         outtree.Fill()
 
     outtree.Write()
     outfile.Close()
-    infile.Close()
 
     print(f"[INFO] Finished fold {fold_id} with {len(indices)} events.")
     return True
@@ -101,44 +100,53 @@ def write_fold(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Prepare K-Fold splits and normalization metadata for XtoYH4b background estimation.")
-    parser.add_argument("--YEAR", type=int, required=True, help="Data taking year (e.g., 2024, 2025)")
+    parser.add_argument("--YEAR", type=str, required=True, help="Data taking year (e.g., 2024, 2022Full)")
     parser.add_argument("--K", type=int, default=10, help="Number of folds (default: 10)")
     args = parser.parse_args()
 
-    # Dynamic path configuration based on argparse
-    INPUT_DIR = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/"
-    INPUT_FILE = INPUT_DIR + "Tree_Data_Parking.root"
-    OUTPUT_DIR = f"/data/dust/user/wanghaoy/XtoYH4b/Bkg_10fold_datafile/{args.YEAR}/"
-    K_FOLDS = args.K
     YEAR = args.YEAR
+    K_FOLDS = args.K
+
+    # Era Mapping Logic
+    era_mapping = {
+        "2022Full": ["2022", "2022EE"],
+        "2023Full": ["2023", "2023BPiX"]
+    }
+    subdirs = era_mapping.get(YEAR, [YEAR])
+
+    base_input_dir = "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/"
+    file_paths = [f"{base_input_dir}{subdir}/Tree_Data_Parking.root" for subdir in subdirs]
+    
+    OUTPUT_DIR = f"/data/dust/user/wanghaoy/XtoYH4b/Bkg_10fold_datafile/{YEAR}/"
 
     print(f"=== Starting Data Preparation Pipeline for {YEAR} ===")
-    print(f"Input file: {INPUT_FILE}")
+    for p in file_paths:
+        print(f" - Input file: {p}")
     print(f"Output dir: {OUTPUT_DIR}")
 
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
-
-    
     json_path = os.path.join(OUTPUT_DIR, f"metadata_{YEAR}.json")
-    calculate_and_save_norm_scale_metadata(INPUT_FILE, json_path)
+    calculate_and_save_norm_scale_metadata(file_paths, json_path, YEAR)
 
-    infile = ROOT.TFile.Open(INPUT_FILE)
-    tree = infile.Get("Tree_JetInfo")
-    n = tree.GetEntries()
-    infile.Close()
+    chain = ROOT.TChain("Tree_JetInfo")
+    for path in file_paths:
+        chain.Add(path)
+    
+    n = chain.GetEntries()
+    print(f"[INFO] Total combined events to fold: {n}")  
 
-    print(f"[INFO] Total events to fold: {n}")  
-
-    rng = random.Random(42 + YEAR) 
+    rng = random.Random(42) 
     indices = list(range(n))
     rng.shuffle(indices)
 
     folds = [sorted(indices[i::K_FOLDS]) for i in range(K_FOLDS)]
 
-    print(f"[INFO] Starting parallel processing with {mp.cpu_count()} cores...")
+    print(f"[INFO] Starting parallel processing with {min(mp.cpu_count(), K_FOLDS)} cores...")
+
+    pool_args = [(i, folds[i], file_paths, OUTPUT_DIR, YEAR) for i in range(K_FOLDS)]
 
     with mp.Pool(processes=min(mp.cpu_count(), K_FOLDS)) as pool:
-        pool.map(write_fold, [(i, folds[i]) for i in range(K_FOLDS)])
+        pool.map(write_fold, pool_args)
 
     print(f"=== All processing completed for {YEAR} ===")

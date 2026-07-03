@@ -369,77 +369,6 @@ def build_fine_binning_map(njets):
 
     return bin_map
 
-def build_Run2_binning_map(njets):
-    """
-    Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
-    """
-    bin_edges      = np.linspace(0, 1, 51)
-
-    # Use the Run2 binning
-    mx_bin_edges = np.array([
-        340, 360, 392, 424, 456, 488, 520, 552, 584, 616, 648, 704, 
-        768, 832, 896, 960, 1024, 1088, 1152, 1216, 1296, 1424, 
-        1552, 1680, 1808, 1936, 2000, 2500, 3000, 4000, 5000
-    ])
-
-    my_bin_edges = np.array([
-        36, 51, 62, 70, 78, 86, 94, 102, 110, 122, 140, 156, 172, 
-        188, 204, 228, 260, 292, 324, 356, 388, 444, 508, 572, 
-        636, 700, 764, 892, 1020, 1148, 1276, 1404, 1564, 1820, 
-        2000, 2500, 3000, 4000
-    ])
-
-    mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
-    jet_mass_bin_edges = np.linspace(0, 100, 51)
-    njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
-    eta_bin_edges  = np.linspace(-5, 5, 51)
-    phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
-    HT_bin_edges   = np.linspace(0, 2000, 51)
-    dr_bin_edges   = np.linspace(0, 6.3, 51)
-    pt_bin_edges   = np.linspace(0, 1000, 51)
-
-    bin_map = {
-        "MX": mx_bin_edges,
-        "MY": my_bin_edges,
-        "MH": mh_bin_edges,
-        "Score": bin_edges,
-        "n_jets_add": njets_add_bin_edges,
-        "HT_additional": HT_bin_edges,
-        "HT_4j": HT_bin_edges,
-        "dR1_plot": dr_bin_edges,
-        "dR2_plot": dr_bin_edges,
-    }
-
-    # jet AK4 vars
-    for i in range(1, njets + 1):
-        bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
-        bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
-        bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
-        bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
-
-    # Higgs candidates
-    for v in ["pt", "eta", "phi"]:
-        edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
-        bin_map[f"Hcand_1_{v}"] = edges
-        bin_map[f"Hcand_2_{v}"] = edges
-
-    # H1/H2 deta/dphi/dR
-    for h in ["H1", "H2"]:
-        bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
-        bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
-        bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
-
-    # H1H2 system
-    bin_map["H1H2_pt"]   = pt_bin_edges
-    bin_map["H1H2_eta"]  = eta_bin_edges
-    bin_map["H1H2_phi"]  = phi_bin_edges
-    bin_map["H1H2_deta"] = eta_bin_edges
-    bin_map["H1H2_dphi"] = phi_bin_edges
-    bin_map["H1H2_dR"]   = dr_bin_edges
-
-    return bin_map
-
-
 # def get_5fold_filelists(fold_n, base_path="/data/dust/user/wanghaoy/XtoYH4b/split_rootfile"):
 #     """
 #     For 5-fold, each fold uses 2 files for testing and the remaining 8 for training.
@@ -739,9 +668,6 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
     - err_tot: total error combining statistical and systematic in quadrature
     - err_nc: non-closure error if NonClosureFracPath is provided (only for 3bHMW)
 
-    - ratio_errs
-    - ratio_errs_4b, ratio_errs_2b: ratio of errors to bin contents for 4b and 2b histograms
-
     """
     # h_3T  = file.Get(f"{var_name}_hist_4b_mean") 
     # h_2T  = file.Get(f"{var_name}_hist_2b_mean")
@@ -813,7 +739,6 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
             err_sys  *= scale_factor
 
     err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
-    err_3T_stat = np.array([h_3T.GetBinError(i) for i in range(1, n_bins+1)])
 
     if NonClosureFracPath is not None:
         nonclosure_factors = load_nonclosure_factor(var_name, n_bins, NonClosureFracPath)
@@ -838,11 +763,6 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
     chi2_2b = h_3T.Chi2Test(h_2T, "WW CHI2/NDF")
     chi2_Nonc = h_3T.Chi2Test(h_Nonc_err_for_chi2, "WW CHI2/NDF")
 
-    # chi2_val = h_3T.Chi2Test(h_total_err_for_chi2, "UU CHI2/NDF")
-    # chi2_2b = h_3T.Chi2Test(h_2T, "UU CHI2/NDF")
-    # chi2_Nonc = h_3T.Chi2Test(h_Nonc_err_for_chi2, "UU CHI2/NDF")
-
-
     edges = np.array([h_3T.GetBinLowEdge(i) for i in range(1, n_bins+2)])
     y_3T = np.array([h_3T.GetBinContent(i) for i in range(1, n_bins+1)])
     y_2T = np.array([h_2T.GetBinContent(i) for i in range(1, n_bins+1)])
@@ -866,9 +786,9 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
 
     if NonClosureFracPath is not None:
         print(f"Non-closure uncertainty included in total error for chi2 calculation for {var_name}.")
-        return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_nc, nonclosure_factors, chi2_Nonc, err_3T_stat
+        return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_nc, nonclosure_factors, chi2_Nonc
     else:
-        return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_3T_stat
+        return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys
 
 def processing(file_list, args=None):
     """
@@ -917,12 +837,12 @@ def processing(file_list, args=None):
     wp4 = tree_arr["JetAK4_btag_B_WP_4"]
 
     H_mass = tree_arr["Hcand_mass"]
-    min_mask = (H_mass > 50) & (H_mass < 300)
+    min_mask = (H_mass > 0) & (H_mass < 30000000000000000000)
     common_mask = ((H_mass < 90) | (H_mass > 150)) & min_mask
     bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask & min_mask
 
-    pt_cut_mask = (tree_arr["JetAK4_pt_1"] > 50) & (tree_arr["JetAK4_pt_2"] > 50) & \
-                  (tree_arr["JetAK4_pt_3"] > 50) & (tree_arr["JetAK4_pt_4"] > 50)
+    # pt_cut_mask = (tree_arr["JetAK4_pt_1"] > 50) & (tree_arr["JetAK4_pt_2"] > 50) & \
+    #               (tree_arr["JetAK4_pt_3"] > 50) & (tree_arr["JetAK4_pt_4"] > 50)
 
     if args.TrainRegion == "3b":
         sig_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 >= 2) & (wp4 < 2) & common_mask
@@ -958,9 +878,9 @@ def processing(file_list, args=None):
     elif args.TestRegion == None:
         pass
 
-    common_mask = common_mask & pt_cut_mask
-    sig_mask = sig_mask & pt_cut_mask
-    bkg_mask = bkg_mask & pt_cut_mask
+    common_mask = common_mask #& pt_cut_mask
+    sig_mask = sig_mask #& pt_cut_mask
+    bkg_mask = bkg_mask #& pt_cut_mask
 
     sig_idx = np.where(sig_mask)[0]
     bkg_idx = np.where(bkg_mask)[0]
@@ -989,24 +909,24 @@ def processing(file_list, args=None):
     
 
 # Need to be deleted! Only for testing this time
-    # if args.runType == "test-only" and args.TrainRegion == "3b":
+    if args.runType == "test-only" and args.TrainRegion == "3b":
         
-    #     rng = np.random.default_rng(seed=42)
+        rng = np.random.default_rng(seed=42)
         
-    #     rng.shuffle(sig_idx)
+        rng.shuffle(sig_idx)
         
-    #     n_total_3b = len(sig_idx)
-    #     chunk_size = int(n_total_3b / 5)
+        n_total_3b = len(sig_idx)
+        chunk_size = int(n_total_3b / 5)
         
-    #     start_idx = 1 * chunk_size
-    #     end_idx   = start_idx + chunk_size
+        start_idx = 1 * chunk_size
+        end_idx   = start_idx + chunk_size
         
             
-    #     print(f"[INFO] 3b Split Strategy: Using Split 1/5")
-    #     print(f"[INFO] Slice Range: {start_idx} to {end_idx} (Total 3b Pool: {n_total_3b})")
+        print(f"[INFO] 3b Split Strategy: Using Split 1/5")
+        print(f"[INFO] Slice Range: {start_idx} to {end_idx} (Total 3b Pool: {n_total_3b})")
         
-    #     sig_idx_subset = sig_idx[start_idx : end_idx]
-    #     sig_idx = sig_idx_subset
+        sig_idx_subset = sig_idx[start_idx : end_idx]
+        sig_idx = sig_idx_subset
 # ==========================================================
 
 
@@ -1294,8 +1214,8 @@ def make_hist(suffix, values):
         h.SetBinError(i+1, 1e-6) 
     return h
 
-def get_lumi(year): # Lumi need to be changed!!!!
-    lumi_map = {"2022": 7.98, "2022EE": 26.7, "2023": 11.2, "2023BPiX": 9.45, "2024": 109, "2025": 111, "2022Full": 34.7, "2023Full": 20.7}
+def get_lumi(year):
+    lumi_map = {"2022": 7.98, "2022EE": 26.7, "2023": 11.2, "2023BPiX": 9.45, "2024": 109, "2025": 111}
     if year not in lumi_map:
         print(f"Warning: Invalid year {year}. Defaulting to 109 (2024).")
         return 109.0
@@ -1402,69 +1322,6 @@ def get_binning_mappings(mx_bin_edges=None, my_bin_edges=None):
                 current_1d_bin += 1
 
     # Return everything bundled in one master dictionary
-    return {
-        "my_to_unrolled": my_to_unrolled,
-        "mx_to_unrolled": mx_to_unrolled,
-        "unrolled_to_my": unrolled_to_my,
-        "unrolled_to_mx": unrolled_to_mx,
-        "unrolled_to_label": unrolled_to_label
-    }
-
-def get_Run2_binning_mappings(mx_bin_edges=None, my_bin_edges=None):
-    """
-    Builds a complete two-way mapping for 2D MX-MY bins to 1D unrolled bins.
-    """
-    
-    # Default edges matching the new unrolling target
-    if mx_bin_edges is None:
-        mx_bin_edges = np.array([
-            340, 360, 392, 424, 456, 488, 520, 552, 584, 616, 648, 704, 
-            768, 832, 896, 960, 1024, 1088, 1152, 1216, 1296, 1424, 
-            1552, 1680, 1808, 1936, 2000, 2500, 3000, 4000, 5000
-        ])
-    if my_bin_edges is None:
-        my_bin_edges = np.array([
-            36, 51, 62, 70, 78, 86, 94, 102, 110, 122, 140, 156, 172, 
-            188, 204, 228, 260, 292, 324, 356, 388, 444, 508, 572, 
-            636, 700, 764, 892, 1020, 1148, 1276, 1404, 1564, 1820, 
-            2000, 2500, 3000, 4000
-        ])
-
-    n_my_bins = len(my_bin_edges) - 1
-    n_mx_bins = len(mx_bin_edges) - 1
-
-    # Initialize the dictionaries
-    my_to_unrolled = {i: [] for i in range(1, n_my_bins + 1)}
-    mx_to_unrolled = {i: [] for i in range(1, n_mx_bins + 1)}
-    unrolled_to_my = {}
-    unrolled_to_mx = {}
-    unrolled_to_label = {}
-    
-    current_1d_bin = 1
-
-    # Apply physical unrolled bin logic
-    for my_idx in range(n_my_bins):
-        for mx_idx in range(n_mx_bins):
-            mx_upper = mx_bin_edges[mx_idx + 1]
-            mx_lower = mx_bin_edges[mx_idx]
-            my_lower = my_bin_edges[my_idx]
-
-            # The physical cut (matches your analysis code)
-            if mx_upper > (my_lower + 125):
-                my_bin_1d = my_idx + 1  # 1-based ROOT index
-                mx_bin_1d = mx_idx + 1  # 1-based ROOT index
-                
-                # Forward mappings (1D to Unrolled)
-                my_to_unrolled[my_bin_1d].append(current_1d_bin)
-                mx_to_unrolled[mx_bin_1d].append(current_1d_bin)
-                
-                # Reverse mappings (Unrolled to 1D)
-                unrolled_to_my[current_1d_bin] = my_bin_1d
-                unrolled_to_mx[current_1d_bin] = mx_bin_1d
-                unrolled_to_label[current_1d_bin] = f"MX{int(mx_lower)}_MY{int(my_lower)}"
-                
-                current_1d_bin += 1
-
     return {
         "my_to_unrolled": my_to_unrolled,
         "mx_to_unrolled": mx_to_unrolled,

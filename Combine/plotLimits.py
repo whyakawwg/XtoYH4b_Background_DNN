@@ -15,6 +15,7 @@ import os
 import glob
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import mplhep as hep
 import numpy as np
 import argparse
@@ -127,10 +128,100 @@ def plot2D(group,variable_to_plot,z_axis_title,outdir,filename,cmap_style='OrRd'
                 ax.text(j, i, f"{val:.2f}", ha="center", va="center", color="black", fontsize=10)
                 #ax.text(x, y, f"{val:.2f}", ha="center", va="center", color="black", fontsize=10)
     
-    hep.cms.text("Simulation", loc=0, ax=ax)
+    hep.cms.text("Preliminary", loc=0, ax=ax)
     ax.text(1.0, 1.02, "L = "+str(data_lumi)+" fb$^{-1}$ (13.6 TeV)",transform=ax.transAxes, ha="right", va="bottom", fontsize=18)
 
-    out_file_name =  f"{outdir}/{filename}.png"
+    out_file_name =  f"{outdir}/{args.YEAR}{filename}.png"
+
+    plt.savefig(os.path.join(outdir, out_file_name), dpi=1000, bbox_inches="tight")
+
+def plot2D_log(group,variable_to_plot,z_axis_title,outdir,filename,cmap_style='OrRd',add_Text=False,Text_to_add="", vmax=None, vmin=1, show_values=True):
+
+    plt.style.use(hep.style.CMS)
+
+    plt.rcParams["axes.labelsize"] = 18
+    plt.rcParams["xtick.labelsize"] = 16
+    plt.rcParams["ytick.labelsize"] = 16
+
+    pivot = group.pivot(index="MY", columns="MX", values=variable_to_plot)
+
+    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+
+    print("Pivot table for plotting:")
+    print(pivot)
+
+    # norm = mcolors.LogNorm(vmin=vmin, vmax=vmax)
+
+
+    # imshow_kwargs = {
+    #     "origin": "lower",
+    #     "aspect": "auto",
+    #     "cmap": cmap_style,
+    #     "norm": norm
+    # }
+    # if vmax is not None:
+    #     imshow_kwargs["vmax"] = vmax
+    # if vmin is not None:
+    #     imshow_kwargs["vmin"] = vmin
+
+    imshow_kwargs = {
+        "origin": "lower",
+        'norm': mcolors.LogNorm(vmin=1, vmax=200), 
+        'cmap': cmap_style, # 'OrRd' passed from plotLimits
+        'aspect': 'auto'
+    }
+
+    im = ax.imshow(pivot.values, **imshow_kwargs)
+
+    ax.set_xlabel("$m_X$ [GeV]",loc="right", labelpad=8)
+    ax.set_xticks(np.arange(len(pivot.columns)))
+    ax.set_xticklabels(pivot.columns)
+    #ax.set_xticks(pivot.columns)
+
+    ax.set_ylabel("$m_Y$ [GeV]",loc="top", labelpad=8)
+    ax.set_yticks(np.arange(len(pivot.index)))
+    ax.set_yticklabels(pivot.index)
+    #ax.set_yticks(pivot.index)
+
+    ax.set_xticks(np.arange(-0.5, len(pivot.columns), 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(pivot.index), 1), minor=True)
+    ax.grid(which="minor", color="w", linewidth=0.5)
+
+    ax.tick_params(axis="both", which="both", direction="in", top=True, right=True, labelsize=14)
+
+    #plt.xlim(350,1950)
+    #plt.ylim(50,1500)
+    #ax.set_xlim([350, 1950])
+
+    fig.colorbar(im, ax=ax, label=z_axis_title)
+    
+
+    if add_Text:
+        ax.text(
+            0.2, 0.875,                   # x, y in axes coordinates (0-1)
+            Text_to_add,                  # text
+            transform=ax.transAxes,       # coordinates relative to axes
+            ha="center",                  # horizontal alignment
+            va="bottom",                  # vertical alignment
+            fontsize=14,
+            color="black"
+        )
+
+    if show_values == True:
+        for i, y in enumerate(pivot.index):
+            for j, x in enumerate(pivot.columns):
+                val = pivot.iloc[i, j]
+                if not np.isnan(val):
+                    ax.text(j, i, f"{val:.2f}", ha="center", va="center", color="black", fontsize=10)
+                    #ax.text(x, y, f"{val:.2f}", ha="center", va="center", color="black", fontsize=10)
+        
+    hep.cms.text("Preliminary", loc=0, ax=ax)
+    ax.text(1.0, 1.02, "L = "+str(data_lumi)+" fb$^{-1}$ (13.6 TeV)",transform=ax.transAxes, ha="right", va="bottom", fontsize=18)
+
+    if show_values == True:
+        out_file_name =  f"{outdir}/{args.YEAR}{filename}_log_values.png"
+    else:
+        out_file_name =  f"{outdir}/{args.YEAR}{filename}_log.png"
 
     plt.savefig(os.path.join(outdir, out_file_name), dpi=1000, bbox_inches="tight")
 
@@ -216,9 +307,17 @@ def plotLimits(log=False,inDir="",outDir="",shapes=[],legends=[]):
     # plotting limits for each scenario
 
     for scenario, group in df.groupby("scenario"):
-      
-        plot2D(group,"expected","Expected limits at 95% CL [fb]",outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1])
-        plot2D(group,"expected","Expected limits at 95% CL [fb]",outDir,f"Exp_limits_MX_MY_{scenario}_vmax200",'OrRd',True,legends[scenario-1], vmax=200)
+
+        y_axis_title = r"$\sigma(pp \rightarrow X)\mathcal{B}(X \rightarrow YH \rightarrow b\bar{b}b\bar{b})$ [fb]"
+        # plot2D(group,"expected","Expected limits at 95% CL [fb]",outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1])
+        # plot2D(group,"expected","Expected limits at 95% CL [fb]",outDir,f"Exp_limits_MX_MY_{scenario}_vmax200",'OrRd',True,legends[scenario-1], vmax=200)
+        # plot2D_log(group,"expected","Expected limits at 95% CL [fb]",outDir,f"Exp_limits_MX_MY_{scenario}",'viridis',True,legends[scenario-1])
+        
+        plot2D(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1])
+        plot2D(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}_vmax200",'OrRd',True,legends[scenario-1], vmax=200)
+        plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1], show_values=True)
+        plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1], show_values=False)
+        # plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1])
 
     # ratio between combine and inclusive signal regions #
 

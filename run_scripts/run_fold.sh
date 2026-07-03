@@ -117,6 +117,7 @@ else
 
     job_key="Evaluation_${REGION}vs2b_${special_name}"
     jobs["$job_key"]="python3 ${script_name} --YEAR ${YEAR} --isScaling 1 --isBalanceClass ${isBalance} --Model DNN --runType test-only --TrainRegion ${REGION} --TestRegion ${TEST_REGION} --Nfold ${n_folds}"
+    jobs["$job_key"]="python3 "${base_script_dir}/${plot_script_name}" --YEAR ${YEAR} --isScaling 1 --isBalanceClass ${isBalance} --Model DNN --runType plot-only --TrainRegion ${REGION} --TestRegion ${TEST_REGION} --Nfold ${n_folds}"
 fi
 
 

@@ -82,9 +82,10 @@ int main(int argc, char **argv) {
  
   //! [part1]
    
-  cats.push_back({1, "h_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut"});
-  cats.push_back({2, "h_MX_Comb_3_3_3_2_Inclusive_mHcut"});
-  cats.push_back({3, "h_MY_Comb_3_3_3_2_Inclusive_mHcut"});
+  cats.push_back({1, "h_MaxScore_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut"});
+  cats.push_back({2, "h_MaxScore_MX_Comb_3_3_3_2_Inclusive_mHcut"});
+  cats.push_back({3, "h_MaxScore_MY_Comb_3_3_3_2_Inclusive_mHcut"});
+
 
   //! [part2]
   vector<string> signals;
@@ -223,13 +224,13 @@ int main(int argc, char **argv) {
         std::string my_syst_name = "MY125Bin" + std::to_string(i) + "_Uncertainty_" + year;
         
         cb.cp()
-        .bin({"h_MY_Comb_3_3_3_2_Inclusive_mHcut"})
+        .bin({"h_MaxScore_MY_Comb_3_3_3_2_Inclusive_mHcut"})
         .process(ch::JoinStr({bkg_procs}))
         .AddSyst(cb, my_syst_name, "shape", SystMap<>::init(1.00));
     }
 
     cb.cp()
-    .bin({"h_MY_Comb_3_3_3_2_Inclusive_mHcut"})
+    .bin({"h_MaxScore_MY_Comb_3_3_3_2_Inclusive_mHcut"})
     .process(ch::JoinStr({bkg_procs}))
     .AddSyst(cb, "NonClosure_Uncertainty_" + year, "shape", SystMap<>::init(1.00));
 
@@ -237,9 +238,8 @@ int main(int argc, char **argv) {
     // Apply the 14 decorrelated Non-Closure uncertainties exclusively to the MX bin for the background
     for (int i = 1; i <= 14; ++i) {
         std::string nc_syst_name = "NonClosure_Bin" + std::to_string(i) + "_Uncertainty_" + year;
-        
         cb.cp()
-        .bin({"h_MX_Comb_3_3_3_2_Inclusive_mHcut"})
+        .bin({"h_MaxScore_MX_Comb_3_3_3_2_Inclusive_mHcut"})
         .process(ch::JoinStr({bkg_procs}))
         .AddSyst(cb, nc_syst_name, "shape", SystMap<>::init(1.00));
     }
@@ -250,7 +250,7 @@ int main(int argc, char **argv) {
         std::string nc_syst_name = "NonClosure_MXBin" + std::to_string(i) + "_Uncertainty_" + year;
 
         cb.cp()
-        .bin({"h_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut"})
+        .bin({"h_MaxScore_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut"})
         .process(ch::JoinStr({bkg_procs}))
         .AddSyst(cb, nc_syst_name, "shape", SystMap<>::init(1.00));
 
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
         for (int my_bin = 6; my_bin <= 8; ++my_bin) {
             std::string my_syst_name = "MY125Bin" + std::to_string(my_bin) + "_MXBin" + std::to_string(i) + "_Uncertainty_" + year;
             cb.cp()
-                .bin({"h_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut"})
+                .bin({"h_MaxScore_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut"})
                 .process(ch::JoinStr({bkg_procs}))
                 .AddSyst(cb, my_syst_name, "shape", SystMap<>::init(1.00));
         }
@@ -379,6 +379,10 @@ int main(int argc, char **argv) {
 
 ////////////
 //  Drop any shape systematics where the Up or Down variation has 0 or negative yield
+
+// print out the file name beeing processed for debugging
+  cout << "Processing input file: " << aux_shapes + input_filename << endl;
+
   cb.FilterSysts([&](ch::Systematic *s) {
       if (s->type() == "shape") {
           if (s->shape_u() == nullptr || s->shape_d() == nullptr) return true;

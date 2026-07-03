@@ -16,7 +16,7 @@ from fold_functions_ptcut import (
     error_bands,
     load_nonclosure_factor,
     make_hist,
-    get_all_bin_mappings,
+    get_binning_mappings,
 )
 
 import ROOT
@@ -90,7 +90,7 @@ def save_non_closure_factor(
     bins_to_exclude = []
     if exclude_my_bins:
         if var_name == "Unrolled_MXMY":
-            maps = get_all_bin_mappings()
+            maps = get_binning_mappings()
             for mb in exclude_my_bins:
                 bins_to_exclude.extend(maps["my_to_unrolled"].get(mb, []))
         elif var_name == "MY":
@@ -125,7 +125,7 @@ def plot_evaluation(
     var, args, edges,
     y_4b, y_2b, y_model, err_tot, err_stat,
     ratio_4b_2b, ratio_4b_2b_w, ratio_err_tot, ratio_err_stat,
-    chi2_val, chi2_2b,
+    chi2_val, chi2_2b, err_stat_4b=None, 
     output_dirname=f"{dir_suffix}Closure_Plots",
     normalize_shapes=True,
     x_scale_log=False,
@@ -141,6 +141,9 @@ def plot_evaluation(
         err_stat = err_stat / int_2bw
         ratio_4b_2b   = y_4b / np.where(y_2b   > 0, y_2b,   1e-10)
         ratio_4b_2b_w = y_4b / np.where(y_model > 0, y_model, 1e-10)
+        rel_err_num = err_stat_4b / np.where(y_4b > 0, y_4b, 1e-10)
+        rel_err_den = err_stat / np.where(y_2b > 0, y_2b, 1e-10)
+        ratio_err_4b2b = ratio * np.sqrt(rel_err_num**2 + rel_err_den**2)
 
     hep.style.use("CMS")
     fig, (ax, rax) = plt.subplots(
@@ -177,9 +180,9 @@ def plot_evaluation(
     r_band_low, r_band_high = error_bands(ones, ratio_err_tot)
     r_band_stat_low, r_band_stat_high = error_bands(ones, ratio_err_stat)
     rax.fill_between(edges, r_band_low, r_band_high, step="post", color="gray", alpha=0.3)
-    rax.errorbar(x_centers, ratio_4b_2b,   fmt="o", color="red",
+    rax.errorbar(x_centers, ratio_4b_2b, yerr=ratio_err_4b2b, fmt="o", color="red",
                  label=rf"{labels[0]}/{labels[1]} $\chi^2/NDF={chi2_2b:.2f}$")
-    rax.errorbar(x_centers, ratio_4b_2b_w, fmt="o", color="blue",
+    rax.errorbar(x_centers, ratio_4b_2b_w, yerr=rel_err_num, fmt="o", color="blue",
                  label=rf"{labels[0]}/{labels[2]} $\chi^2/NDF={chi2_val:.2f}$")
     rax.fill_between(edges, r_band_stat_low, r_band_stat_high, step="post",
                      facecolor="none", edgecolor="green", hatch="////", alpha=0.5)
@@ -192,6 +195,57 @@ def plot_evaluation(
     handles_rax, labels_rax = rax.get_legend_handles_labels()
     ax.legend(handles_ax + handles_rax, labels_ax + labels_rax,
               loc="best", ncol=1, fontsize="x-small")
+
+    outdir = f"{output_dirname}_{args.TestRegion}"
+    os.makedirs(outdir, exist_ok=True)
+    outname = f"{outdir}/{var}_BkgEstimation" + ("_xlog" if x_scale_log else "")
+    plt.savefig(f"{outname}.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{outname}.pdf", bbox_inches="tight")
+    plt.close()
+
+def plot_evaluation_signal_region(
+    var, args, edges,
+    y_4b, y_2b, y_model, err_tot, err_stat,
+    ratio_4b_2b, ratio_4b_2b_w, ratio_err_tot, ratio_err_stat,
+    chi2_val, chi2_2b,
+    output_dirname=f"{dir_suffix}Closure_Plots",
+    normalize_shapes=True,
+    x_scale_log=False,
+):
+    """Same as plot_evaluation but for the signal region, blinded, so without data points and ratios."""
+    if normalize_shapes:
+        int_2b  = np.sum(y_2b)  or 1e-10
+        int_2bw = np.sum(y_model) or 1e-10
+        y_2b   = y_2b  / int_2b
+        y_model = y_model / int_2bw
+        err_tot = err_tot / int_2bw
+        err_stat = err_stat / int_2bw
+
+    hep.style.use("CMS")
+
+    fig, ax = plt.subplots(figsize=(15, 8))
+    lumi = get_lumi(args.YEAR)
+    hep.cms.label("Preliminary", data=True, lumi=lumi, com=13.6, year=args.YEAR, ax=ax)
+
+    labels = ["2b", "2b_w"]
+    hep.histplot(y_2b,   bins=edges, ax=ax, color="red",    label=labels[0])
+    hep.histplot(y_model, bins=edges, ax=ax, color="blue",   label=labels[1])
+
+    band_low, band_high   = error_bands(y_model, err_tot)
+    stat_low, stat_high   = error_bands(y_model, err_stat)
+    ax.fill_between(edges, band_low, band_high, step="post", color="gray",  alpha=0.3, label="Total Uncertainty")
+    ax.fill_between(edges, stat_low, stat_high, step="post", facecolor="none",
+                    edgecolor="green", hatch="////", alpha=0.5, label="Stat Uncertainty")
+
+    if var in LOG_VARS:
+        ax.set_yscale("log")
+    if x_scale_log and var in ["MX", "MY"]:
+        ax.set_xscale("log")
+
+    ax.set_xlim(edges[0], edges[-1])
+    ax.set_ylabel("Arbitrary units")
+
+    ax.legend(loc="best", ncol=1, fontsize="x-small")
 
     outdir = f"{output_dirname}_{args.TestRegion}"
     os.makedirs(outdir, exist_ok=True)
@@ -427,7 +481,7 @@ def add_decorrelated_nc_uncertainty(
     if target_my_bins is None:
         target_my_bins = TARGET_MY_BINS
 
-    maps        = get_all_bin_mappings()
+    maps        = get_binning_mappings()
     my_to_unr   = maps["my_to_unrolled"]
     unr_to_mx   = maps["unrolled_to_mx"]
 
@@ -641,7 +695,7 @@ def run_create_uncertainty_histograms(args):
         if SaveNonClosure:
             (edges, y_mean, y_3T, y_2T, err_tot, scale, chi2_val, chi2_2b,
              err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w,
-             ratio_err_tot, ratio_err_stat, ratio_err_sys) = result_hist
+             ratio_err_tot, ratio_err_stat, ratio_err_sys, err_stat_4b) = result_hist
             save_non_closure_factor(var, edges, ratio_3b_2b_w,
                                     out_filename=NONCLOSURE_FACTORS_FILE,
                                     exclude_my_bins=None)
@@ -651,7 +705,7 @@ def run_create_uncertainty_histograms(args):
             (edges, y_mean, y_3T, y_2T, err_tot, scale, chi2_val, chi2_2b,
              err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w,
              ratio_err_tot, ratio_err_stat, ratio_err_sys,
-             err_nc, ratio_err_nonclosure, chi2_Nonc) = result_hist
+             err_nc, ratio_err_nonclosure, chi2_Nonc, err_stat_4b) = result_hist
 
         nbins       = len(edges) - 1
         edges_array = array.array("d", edges)
@@ -691,14 +745,24 @@ def run_create_uncertainty_histograms(args):
 
         if args.Plot == 1:
             for x_log in [False, True]:
-                plot_evaluation(var, args, edges, y_3T, y_2T, y_mean,
-                                err_tot, err_stat, ratio_3b_2b, ratio_3b_2b_w,
-                                ratio_err_tot, ratio_err_stat, chi2_val, chi2_2b,
-                                normalize_shapes=True, x_scale_log=x_log)
-                plot_ratio_uncertainty(var, args, edges, ratio_err_tot, ratio_err_stat,
-                                       chi2_val, chi2_2b, ratio_err_sys,
-                                       ratio_err_nonclosure, chi2_Nonc,
-                                       normalize_shapes=True, x_scale_log=x_log)
+                if args.TestRegion == "4bHiggsMW":
+                    plot_evaluation_signal_region(var, args, edges, y_3T, y_2T, y_mean,
+                                                  err_tot, err_stat, ratio_3b_2b, ratio_3b_2b_w,
+                                                  ratio_err_tot, ratio_err_stat, chi2_val, chi2_2b,
+                                                  normalize_shapes=True, x_scale_log=x_log)
+                    plot_ratio_uncertainty(var, args, edges, ratio_err_tot, ratio_err_stat,
+                                           chi2_val, chi2_2b, ratio_err_sys,
+                                           ratio_err_nonclosure, chi2_Nonc,
+                                           normalize_shapes=True, x_scale_log=x_log)
+                else:
+                    plot_evaluation(var, args, edges, y_3T, y_2T, y_mean,
+                                    err_tot, err_stat, ratio_3b_2b, ratio_3b_2b_w,
+                                    ratio_err_tot, ratio_err_stat, chi2_val, chi2_2b,
+                                    normalize_shapes=True, x_scale_log=x_log)
+                    plot_ratio_uncertainty(var, args, edges, ratio_err_tot, ratio_err_stat,
+                                        chi2_val, chi2_2b, ratio_err_sys,
+                                        ratio_err_nonclosure, chi2_Nonc,
+                                        normalize_shapes=True, x_scale_log=x_log)
 
             # if not SaveNonClosure:
                 # print(f"Chi2 for {var}: {chi2_val:.3f}  |  "
@@ -878,3 +942,5 @@ main()
 
 # Step 5 – apply background normalization scale factor
 #   python3 uncertainty_pipeline.py --YEAR 2024 --runType test-only --TrainRegion 4b --TestRegion 4bHiggsMW --function apply_bkg_norm_scalefactor
+
+#   python3 convert_to_combine_input_DecoMX.py --YEAR 2024

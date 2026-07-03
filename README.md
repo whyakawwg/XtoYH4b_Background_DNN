@@ -6,7 +6,7 @@ Use the scripts from: [text](https://github.com/whyakawwg/XtoYH4b_Background_DNN
 
 In this background estimation method, the 10-fold emsembling method is used. It's more convinient for the model training to prepare the randomly splitted 10-fold data files:
 ```
-python3 multiprocessing_split.py --YEAR 2024
+python3 prepare_fold_datafile --YEAR 2024
 ```
 The 10 root files and the metadata json file will be created at :`/data/dust/user/wanghaoy/XtoYH4b/Bkg_10fold_datafile/YEAR`
 

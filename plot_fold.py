@@ -3,7 +3,7 @@ warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN")
 import fold_functions_ptcut
-from fold_functions_ptcut import get_hist_with_total_error, get_fold_hists, get_split_fold_hists, check_h_nomerror_2b_staterror, get_fold_errors, check_4b_2b_errors, calculate_error_from_histograms
+from fold_functions_ptcut import get_hist_with_total_error, get_fold_hists, get_split_fold_hists, check_h_nomerror_2b_staterror, get_fold_errors, check_4b_2b_errors, calculate_error_from_histograms, get_lumi
 
 import ROOT
 import numpy as np
@@ -49,7 +49,7 @@ parser.add_argument('--isScaling', default=1, type=int, help = "Standard Scaling
 parser.add_argument('--isBalanceClass', default=1, type=int, help = "Balance class?")
 parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
 parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
-parser.add_argument('--runType', default="train-test", choices=["train-test", "train-only", "test-only"], type=str, help = "By default, train-test. Other options: train-only, test-only.")
+parser.add_argument('--runType', default="test-only", choices=["test-only"], type=str, help = "test-only")
 parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'. Even test-only, need to specify train region for the model.")
 parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW' or None if train-only.")
 parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
@@ -67,11 +67,11 @@ n_folds_per_split = args.Nfold if args.Nfold else 10
 total_models = n_splits * n_folds_per_split # 50 models total
 
 if args.TrainRegion == "3b":
-    input_file = "quantiles_Combined_Background_Result_50Models.root"
+    input_file = f"{args.TestRegion}_OnlyPhysical.root"
     print(f"[INFO] 3b Mode: Using {input_file} with 50-model ensemble.")
     output_dir = f"Plots_Evaluation_3b_fold{n_folds}"
 else:
-    input_file = "quantiles_Combined_Background_Result.root"
+    input_file = f"{args.TestRegion}_OnlyPhysical.root"
     output_dir = f"Plots_Evaluation_fold{n_folds}"
 
 os.makedirs(output_dir, exist_ok=True)
@@ -82,7 +82,7 @@ log_filename2 = os.path.join(output_dir, "ratio_error.txt")
 
 normalize = True
 
-data_lumi = 109 
+data_lumi = get_lumi(args.YEAR)
 ratio_ylim = [0.5, 1.5]
 # labels = ["4b", "2b", "2b_w"]
 # labels = ["3b", "2b", "2b_w"]
@@ -99,7 +99,8 @@ if not f:
     print(f"Error: Could not open {input_file}")
     exit()
 
-vars_to_plot = ["MX", "MY", "MH", "Score", "n_jets_add", "HT_additional", "dR1_plot", "dR2_plot", 
+vars_to_plot = ["MX", "MY", "MH", "Score", "Unrolled_MXMY",
+                "n_jets_add", "HT_additional", "dR1_plot", "dR2_plot", 
                 "JetAK4_pt_1", "JetAK4_pt_2", "JetAK4_pt_3", "JetAK4_pt_4", 
                 "JetAK4_eta_1", "JetAK4_eta_2", "JetAK4_eta_3", "JetAK4_eta_4", 
                 "JetAK4_phi_1", "JetAK4_phi_2", "JetAK4_phi_3", "JetAK4_phi_4", 
@@ -115,8 +116,7 @@ vars_to_plot = ["MX", "MY", "MH", "Score", "n_jets_add", "HT_additional", "dR1_p
 with open(log_filename1, "w") as f_log1:
     with open(log_filename2, "w") as f_log2:
         for var in vars_to_plot:
-
-            edges, y_model, y_4b, y_2b, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys = get_hist_with_total_error(
+            edges, y_model, y_4b, y_2b, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_stat_4b= get_hist_with_total_error(
                 f, var, n_folds, normalize=normalize, TrainRegion=args.TrainRegion
             )
 
@@ -172,9 +172,14 @@ with open(log_filename1, "w") as f_log1:
             r_band_stat_high = np.append(1.0 + rel_err_stat,   (1.0 + rel_err_stat)[-1])
             rel_err_sys = err_sys / denom
 
+            rel_err_num = err_stat_4b / np.where(y_4b > 0, y_4b, 1e-10)
+            rel_err_den = err_stat / demon_2b
+            ratio_err_4b2b = ratio * np.sqrt(rel_err_num**2 + rel_err_den**2)
+
+
             rax.fill_between(edges, r_band_low, r_band_high, step='post', color='gray', alpha=0.3)
-            rax.errorbar(x_centers, r_raw, fmt='o', color='red', label=rf"{labels[0]}/{labels[1]} $\frac{{\chi^2}}{{NDF}}={chi2_2b:.2f}$")
-            rax.errorbar(x_centers, ratio, fmt='o', color='blue', label=rf"{labels[0]}/{labels[2]} $\frac{{\chi^2}}{{NDF}}={chi2_val:.2f}$")
+            rax.errorbar(x_centers, r_raw, yerr=ratio_err_4b2b, fmt='o', color='red', label=rf"{labels[0]}/{labels[1]} $\frac{{\chi^2}}{{NDF}}={chi2_2b:.2f}$")
+            rax.errorbar(x_centers, ratio, yerr=rel_err_num,fmt='o', color='blue', label=rf"{labels[0]}/{labels[2]} $\frac{{\chi^2}}{{NDF}}={chi2_val:.2f}$")
             rax.fill_between(edges, r_band_stat_low, r_band_stat_high, step='post', facecolor='none', edgecolor='green', hatch='////', alpha=0.5)
 
             rax.set_ylim(0.5, 1.5)
@@ -295,6 +300,4 @@ with open(log_filename1, "w") as f_log1:
 print(f"  -> Saved plots to {output_dir}")
 f.Close()
 
-
-
-
+# python3 plot_fold.py --YEAR ${YEAR} --isScaling 1 --isBalanceClass 0 --Model DNN --runType ${run_type} --TrainRegion ${train_region} --TestRegion ${test_region} --Nfold 10

@@ -35,11 +35,11 @@ def get_histogram_from_BkgHist(file_path, histogram_name):
         print(f"Error: ROOT file {file_path} could not be opened!")
         return None
     
-    if "h_MX_MY_Comb_3_3_3_2_mHcut" in histogram_name:
-        return None
+    # if "h_MX_MY_Comb_3_3_3_2_mHcut" in histogram_name:
+    #     return None
         
-    if histogram_name == "h_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut":
-        histogram_name = "h_MX_MY_Comb_3_3_3_2_Inclusive_mHcut"
+    # if histogram_name == "h_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut":
+    #     histogram_name = "h_MX_MY_Comb_3_3_3_2_Inclusive_mHcut"
     directory = file.Get(histogram_name)
     if not directory:
         print(f"Error: Directory '{histogram_name}' not found in {file_path}!")
@@ -122,12 +122,12 @@ def write_outputfile(output_file, input_dir, signals, backgrounds, data, histogr
     #         hist.SetName(bkg)
     #         hists.append(hist)
 
-    # data_file = input_dir+"Output_"+data+".root"
-    # hist = get_histogram_from_root(data_file,histogram_name)
-    # if hist:
-    #     processes.append(data)
-    #     hist.SetName("data_obs")
-    #     hists.append(hist)
+    data_file = input_dir+"Output_"+data+".root"
+    hist = get_histogram_from_root(data_file,histogram_name)
+    if hist:
+        processes.append(data)
+        hist.SetName("data_obs")
+        hists.append(hist)
 
     # Process background estimation files
     bkg_file = f"{bkg_dir}Output_Background_{args.YEAR}.root"
@@ -135,9 +135,12 @@ def write_outputfile(output_file, input_dir, signals, backgrounds, data, histogr
     bkg_hists = get_histogram_from_BkgHist(bkg_file, histogram_name)
     if bkg_hists:
         for hist in bkg_hists:
-            proc_name = hist.GetName()    
-            processes.append(proc_name)   
-            hists.append(hist)   
+            if hist.GetName()=="data_obs":
+                continue
+            else:
+                proc_name = hist.GetName()    
+                processes.append(proc_name)   
+                hists.append(hist)   
 
     # Write the histogram to file
 
@@ -283,24 +286,28 @@ histograms_to_process = [
     # "h_MX_Comb_3_3_3_2_Inclusive",
     # "h_MY_Comb_3_3_3_2_Inclusive",
     # "h_MX_MY_index_Comb_3_3_2_2_Inclusive",
+
+    "h_MaxScore_MX_Comb_3_3_3_2_Inclusive_mHcut",
+    "h_MaxScore_MY_Comb_3_3_3_2_Inclusive_mHcut",
+    "h_MaxScore_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut",
 ]
 # histograms for BDT score based selection #
-if args.YEAR=="2023BPiX" or args.YEAR=="2024" or args.YEAR=="2025":
-    histograms_to_process.extend([
-        # "h_MaxScore_MX_MY_Comb_5_5_4_4_Inclusive_mHcut",
-        # "h_MaxScore_MX_MY_Comb_5_5_4_4_mHcut",
-        # "h_MaxScore_MX_MY_Comb_5_5_5_4_mHcut",
-        # "h_MaxScore_MX_MY_Comb_5_5_5_5_mHcut",
-        # "h_MaxScore_MX_MY_Comb_3_3_3_2_Inclusive_mHcut",
-        # "h_MX_MY_Comb_3_3_3_2_Inclusive",
-        # "h_MX_Comb_3_3_3_2_Inclusive",
-        # "h_MY_Comb_3_3_3_2_Inclusive",
-        # "h_MX_MY_index_Comb_3_3_2_2_Inclusive",
-        "h_MX_MY_Comb_3_3_3_2_Inclusive_mHcut",
-        "h_MX_Comb_3_3_3_2_Inclusive_mHcut",
-        "h_MY_Comb_3_3_3_2_Inclusive_mHcut",
-        "h_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut",
-    ])
+# if args.YEAR=="2023BPiX" or args.YEAR=="2024" or args.YEAR=="2025":
+#     histograms_to_process.extend([
+#         # "h_MaxScore_MX_MY_Comb_5_5_4_4_Inclusive_mHcut",
+#         # "h_MaxScore_MX_MY_Comb_5_5_4_4_mHcut",
+#         # "h_MaxScore_MX_MY_Comb_5_5_5_4_mHcut",
+#         # "h_MaxScore_MX_MY_Comb_5_5_5_5_mHcut",
+#         # "h_MaxScore_MX_MY_Comb_3_3_3_2_Inclusive_mHcut",
+#         # "h_MX_MY_Comb_3_3_3_2_Inclusive",
+#         # "h_MX_Comb_3_3_3_2_Inclusive",
+#         # "h_MY_Comb_3_3_3_2_Inclusive",
+#         # "h_MX_MY_index_Comb_3_3_2_2_Inclusive",
+#         # "h_MX_MY_Comb_3_3_3_2_Inclusive_mHcut",
+#         # "h_MX_Comb_3_3_3_2_Inclusive_mHcut",
+#         # "h_MY_Comb_3_3_3_2_Inclusive_mHcut",
+#         # "h_MX_MY_index_Comb_3_3_3_2_Inclusive_mHcut",
+#     ])
 
 # Write to the output file
 
