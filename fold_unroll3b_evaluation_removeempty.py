@@ -11,6 +11,8 @@ import array
 import argparse
 import os
 import joblib
+import uproot
+import awkward as ak
 
 ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
@@ -23,15 +25,118 @@ parser.add_argument('--isScaling', default=1, type=int, help = "Standard Scaling
 parser.add_argument('--isBalanceClass', default=1, type=int, help = "Balance class?")
 parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction of test data")
 parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
-parser.add_argument('--runType', default="train-test", choices=["test-only"], type=str, help = "Options: test-only.")
-parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'. Even test-only, need to specify train region for the model.")
+parser.add_argument('--runType', default="test-only", choices=["test-only"], type=str, help = "Options: test-only.")
+parser.add_argument('--TrainRegion', default="3b", choices=["3b"], type=str, help = "This evaluator uses models trained in the 3b validation region.")
 parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW' or None if train-only.")
 parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
 parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
+parser.add_argument('--MX', required=True, type=int, help="Signal X mass point.")
+parser.add_argument('--MY', required=True, type=int, help="Signal Y mass point.")
 
 parser.add_argument('--Nfold', default=None, type=int, help = "Specify number of folds for training or testing.")
 
 args = parser.parse_args()
+
+
+def mass_point_to_index(file_list, mx, my):
+    mappings = []
+    for file_path in file_list:
+        with uproot.open(file_path) as input_file:
+            if "Tree_SignalGrid" not in input_file:
+                raise RuntimeError(
+                    f"Missing mass-point mapping: Tree_SignalGrid not found in {file_path}."
+                )
+            grid = input_file["Tree_SignalGrid"]
+            missing = [name for name in ("mX_sig", "mY_sig") if name not in grid]
+            if missing:
+                raise RuntimeError(
+                    f"Missing mass-point mapping branches in {file_path}: {', '.join(missing)}."
+                )
+            mx_entries = ak.to_list(grid["mX_sig"].array(library="ak"))
+            my_entries = ak.to_list(grid["mY_sig"].array(library="ak"))
+            if len(mx_entries) != len(my_entries) or not mx_entries:
+                raise RuntimeError(f"Missing or malformed mass-point mapping in {file_path}.")
+            for mx_values, my_values in zip(mx_entries, my_entries):
+                if len(mx_values) != len(my_values):
+                    raise RuntimeError(f"Ambiguous mass-point mapping in {file_path}: unequal MX/MY lengths.")
+                mappings.append(tuple(zip(mx_values, my_values)))
+
+    if not mappings or any(mapping != mappings[0] for mapping in mappings[1:]):
+        raise RuntimeError("Missing or ambiguous mass-point mappings across input files/entries.")
+    if len(mappings[0]) != 272:
+        raise RuntimeError(
+            f"Malformed mass-point mapping: expected 272 entries, found {len(mappings[0])}."
+        )
+    matches = [i for i, point in enumerate(mappings[0]) if point == (mx, my)]
+    if len(matches) != 1:
+        if not matches:
+            raise ValueError(f"Unsupported mass point (MX, MY)=({mx}, {my}).")
+        raise RuntimeError(f"Ambiguous mass-point mapping for (MX, MY)=({mx}, {my}).")
+    return matches[0]
+
+
+def load_pairing_inputs(file_list, source_indices, feature_names, mass_index):
+    pair_branches = {
+        name: f"{name}_pair" for name in feature_names
+        if name in fold_functions_ptcut.PAIR_DEPENDENT_COLUMNS
+    }
+    required_branches = ["best_pair_sig", *pair_branches.values()]
+    n_selected = len(source_indices)
+    pair_indices = np.empty(n_selected, dtype=np.int8)
+    pair_features = {
+        name: np.empty((3, n_selected), dtype=np.float32) for name in pair_branches
+    }
+
+    file_offset = 0
+    for file_path in file_list:
+        with uproot.open(file_path) as input_file:
+            tree = input_file["Tree_JetInfo"]
+            missing = [name for name in required_branches if name not in tree]
+            if missing:
+                raise RuntimeError(f"Missing pairing branches in {file_path}: {', '.join(missing)}.")
+            for start in range(0, tree.num_entries, 100000):
+                stop = min(start + 100000, tree.num_entries)
+                global_start, global_stop = file_offset + start, file_offset + stop
+                positions = np.flatnonzero(
+                    (source_indices >= global_start) & (source_indices < global_stop)
+                )
+                if not len(positions):
+                    continue
+                arrays = tree.arrays(
+                    required_branches, entry_start=start, entry_stop=stop, library="ak"
+                )
+                local_indices = source_indices[positions] - global_start
+                best_pairs = arrays["best_pair_sig"][local_indices]
+                lengths = ak.to_numpy(ak.num(best_pairs, axis=1))
+                if np.any(lengths < 272):
+                    bad = np.flatnonzero(lengths < 272)[0]
+                    raise ValueError(
+                        f"best_pair_sig must contain at least 272 entries; selected event "
+                        f"{positions[bad]} contains {lengths[bad]}."
+                    )
+                selected_pairs = ak.to_numpy(best_pairs[:, mass_index])
+                invalid = ~np.isin(selected_pairs, (0, 1, 2))
+                if np.any(invalid):
+                    bad = np.flatnonzero(invalid)[0]
+                    raise ValueError(
+                        f"Invalid pairing value {selected_pairs[bad]} for selected event "
+                        f"{positions[bad]}; expected 0, 1, or 2."
+                    )
+                pair_indices[positions] = selected_pairs
+
+                for name, branch in pair_branches.items():
+                    values = arrays[branch][local_indices]
+                    lengths = ak.to_numpy(ak.num(values, axis=1))
+                    if np.any(lengths < 3):
+                        bad = np.flatnonzero(lengths < 3)[0]
+                        raise ValueError(
+                            f"Pairing branch '{branch}' has only {lengths[bad]} entries for "
+                            f"selected event {positions[bad]}; expected at least 3."
+                        )
+                    pair_features[name][:, positions] = ak.to_numpy(values[:, :3]).T
+            file_offset += tree.num_entries
+
+    return pair_indices, pair_features
 
 isHcand_index_available = False
 
@@ -39,6 +144,8 @@ n_folds = args.Nfold
 if args.Nfold is None:
     print("Please provide the number of folds using --Nfold argument!")
     exit(1)
+if n_folds != 10:
+    parser.error("The split 3b evaluation requires --Nfold 10.")
 
 binning_map = build_binning_map(njets=4)
 
@@ -59,10 +166,37 @@ else:
     BalanceClass = "NoBalanceClass"
 
 if args.runType == "test-only":
-    fulldata_path = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/" 
-    feature_names, features, combined_tree, aux_data = processing([fulldata_path + "Tree_Data_Parking.root"], args=args)
+    if args.YEAR == "2024" or args.YEAR == "2025":
+        filename_Tree = "Tree_Data_Parking.root"
+    else:
+        filename_Tree = "Tree_Data.root"
+
+    if args.YEAR == "2022Full":
+        input_files = [
+            "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2022/Tree_Data.root",
+            "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2022EE/Tree_Data.root",
+        ]
+    elif args.YEAR == "2023Full":
+        input_files = [
+            "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2023/Tree_Data.root",
+            "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/2023BPix/Tree_Data.root",
+        ]
+    else:
+        fulldata_path = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/{args.YEAR}/"
+        input_files = [fulldata_path + filename_Tree]
+
+    feature_names, features, combined_tree, aux_data = processing(input_files, args=args)
     
     features_raw = features.copy()
+    mass_index = mass_point_to_index(input_files, args.MX, args.MY)
+    pair_indices, pair_features = load_pairing_inputs(
+        input_files, aux_data["source_indices"], feature_names, mass_index
+    )
+    features_by_pair = [features_raw.copy() for _ in range(3)]
+    for feature_index, feature_name in enumerate(feature_names):
+        if feature_name in pair_features:
+            for pair_index in range(3):
+                features_by_pair[pair_index][:, feature_index] = pair_features[feature_name][pair_index]
 
     BalanceClass  = aux_data["BalanceClass"]
     closure       = aux_data["closure"]
@@ -105,29 +239,39 @@ if args.runType == "test-only":
 
     for split in range(n_splits):
         for fold in range(1, n_folds + 1):
-            fold_dir = os.path.join(base_model_dir, f"MODEL_{fold}_{split}")
-            
-            # Load Scalar
-            if args.isScaling == 1:
-                scaler_path = os.path.join(fold_dir, "scaler.pkl")
-                if not os.path.exists(scaler_path):
-                    print(f"  Error: Scaler missing for Split {split} Fold {fold} at {scaler_path}")
-                    continue
-                scaler = joblib.load(scaler_path)
-                X_fold = scaler.transform(features_raw)
-            else:
-                X_fold = features_raw
+            models = {split: {fold: []}}
+            X_folds = []
+            for pair_index in range(3):
+                fold_dir = os.path.join(
+                    base_model_dir, f"MODEL_{fold}_{split}_pair{pair_index}"
+                )
+                model_path = os.path.join(fold_dir, "model.h5")
+                if not os.path.exists(model_path):
+                    raise FileNotFoundError(
+                        f"Missing split-fold-pair model for split {split}, fold {fold}, "
+                        f"pair {pair_index}: {model_path}"
+                    )
+                if args.isScaling == 1:
+                    scaler_path = os.path.join(fold_dir, "scaler.pkl")
+                    if not os.path.exists(scaler_path):
+                        raise FileNotFoundError(
+                            f"Missing scaler for split {split}, fold {fold}, pair "
+                            f"{pair_index}: {scaler_path}"
+                        )
+                    X_folds.append(
+                        joblib.load(scaler_path).transform(features_by_pair[pair_index])
+                    )
+                else:
+                    X_folds.append(features_by_pair[pair_index])
+                models[split][fold].append(load_model(model_path))
 
-            # Load Model
-            model_path = os.path.join(fold_dir, "model.h5")
-            if not os.path.exists(model_path):
-                print(f"  Error: Model missing for Split {split} Fold {fold} at {model_path}")
-                continue
-                
-            model = load_model(model_path)
-            
-            # score = model.predict(X_fold, verbose=0).ravel()
-            score = model.predict(X_fold, batch_size=4096, verbose=0).ravel()
+            pair_scores = np.array([
+                models[split][fold][pair_index].predict(
+                    X_folds[pair_index], batch_size=4096, verbose=0
+                ).ravel()
+                for pair_index in range(3)
+            ])
+            score = pair_scores[pair_indices, np.arange(len(pair_indices))]
             all_fold_scores.append(score)
 
             epsilon = 1e-10
@@ -135,7 +279,7 @@ if args.runType == "test-only":
             all_fold_weights.append(fold_weights)
             model_metadata.append( (split, fold) )
 
-            del model
+            del models
             
             print(f"  -> Split {split} Fold {fold} predicted.")
         import gc
@@ -215,7 +359,9 @@ if args.runType == "test-only":
         binning_map["Unrolled_MXMY"] = list(range(n_valid_bins + 1))
 
     # output_filename = "OnlyPhysical_Unrolled_50Models.root"
-    output_filename = f"{args.TestRegion}_{OUTPUT_FILENAME_suffix}.root"
+    output_filename = (
+        f"{args.TestRegion}_{OUTPUT_FILENAME_suffix}_MX-{args.MX}_MY-{args.MY}.root"
+    )
     f_out = ROOT.TFile(output_filename, "RECREATE")
     
     print(f"Generating histograms and saving to {output_filename}...")
@@ -271,4 +417,3 @@ if args.runType == "test-only":
 
     f_out.Close()
     print("All histograms saved successfully.")
-

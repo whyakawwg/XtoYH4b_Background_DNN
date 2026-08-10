@@ -16,9 +16,12 @@ The normalization scale factors, i.e. $\frac{N(CR_{3b})}{N(CR_{2b})}$ and $\frac
 Use the bash script to create and submit condor jobs for training:
 ```
 cd run_scripts
-bash run_fold.sh -y 2024 -m train -r 4b
+for pair in 0 1 2; do
+    bash run_fold.sh -y 2024 -m train -r 4b -p ${pair}
+    bash run_fold.sh -y 2024 -m train -r 3b -p ${pair}
+done
 ```
-Submit the jobs with `bash /data/dust/user/wanghaoy/XtoYH4b/Background_2024/Train_BackgroundEstimation_condor/4b/job3/condor_submit_train_Background_2024.sh`
+The 4b training creates 10 fold models per pairing. The 3b validation training keeps five statistical splits and creates 50 models per pairing. Submit the pair-specific master scripts under `/data/dust/user/wanghaoy/XtoYH4b/Background_2024/TestTrain_BackgroundEstimation_condor/<region>/job3/pair<pair>/`.
 The models and corresponding training plots will be saved at `/data/dust/user/wanghaoy/XtoYH4b/Background_2024/2024/4b/`
 
 ## Estimate the background with DNN models
@@ -27,9 +30,22 @@ Use the bash script to create and submit condor jobs for evaluation:
 cd run_scripts
 bash run_fold.sh -y 2024 -m test -r 4b -tr 4btest
 bash run_fold.sh -y 2024 -m test -r 4b -tr 4bHiggsMW
+bash run_fold.sh -y 2024 -m test -r 3b -tr 3btest
+bash run_fold.sh -y 2024 -m test -r 3b -tr 3bHiggsMW
 ```
-Submit the jobs with `bash /data/dust/user/wanghaoy/XtoYH4b/Background_2024/4btest_evaluation/job3/condor_submit_test_Background_2024.sh` and `bash /data/dust/user/wanghaoy/XtoYH4b/Background_2024/4bHiggsMW_evaluation/job3/condor_submit_test_Background_2024.sh`
-The background histograms will be stored at `/data/dust/user/wanghaoy/XtoYH4b/Background_2024/4btest_evaluation/4btest_OnlyPhysical.root` and `/data/dust/user/wanghaoy/XtoYH4b/Background_2024/4bHiggsMW_evaluation/4bHiggsMW_OnlyPhysical.root`
+Each evaluation command creates 272 Condor jobs, one for every prepared `(MX, MY)` signal mass point. Submit the generated script from the corresponding `<TestRegion>_evaluation/job3/` directory. The 4b evaluator averages 10 fold predictions; the 3b evaluator preserves the five validation splits and averages 5 splits × 10 folds.
+
+Each job writes a mass-point-specific ROOT file, for example:
+```
+/data/dust/user/wanghaoy/XtoYH4b/Background_2024/4btest_evaluation/4btest_OnlyPhysical_MX-1000_MY-150.root
+```
+
+To plot one 4b mass point after its evaluation job finishes:
+```
+cd /data/dust/user/wanghaoy/XtoYH4b/Background_2024/4btest_evaluation
+python3 plot_fold.py --YEAR 2024 --isScaling 1 --isBalanceClass 0 --Model DNN --runType test-only --TrainRegion 4b --TestRegion 4btest --Nfold 10 --MX 1000 --MY 150
+```
+Plots are written to `Plots_Evaluation_fold10_MX-1000_MY-150/`.
 
 ## Create Combine input
 ```
@@ -99,4 +115,3 @@ bash Run_Limits_FullProcess.sh combined_2024_2025 _v1 2
 bash Run_Limits_FullProcess.sh combined_2024_2025 _v1 3
 
 ```
-

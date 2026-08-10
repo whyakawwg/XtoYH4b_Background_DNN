@@ -79,6 +79,14 @@ def _build_th1(name, values, edges_array, err_per_bin=None, epsilon=1e-6):
     return h
 
 
+def _chi2_per_ndf(observed, expected, observed_error, expected_error, normalized):
+    """Calculate chi2/NDF for the arrays exactly as displayed."""
+    variance = observed_error**2 + expected_error**2
+    valid = np.isfinite(observed) & np.isfinite(expected) & (variance > 0)
+    ndf = max(int(np.count_nonzero(valid)) - int(normalized), 1)
+    return float(np.sum((observed[valid] - expected[valid])**2 / variance[valid]) / ndf)
+
+
 # Non-closure factor
 def save_non_closure_factor(
     var_name, edges, ratio_array, out_filename=NONCLOSURE_FACTORS_FILE, exclude_my_bins=None
@@ -123,13 +131,16 @@ def save_non_closure_factor(
 # Plot the closure plots (Now with correct total uncertainty)
 def plot_evaluation(
     var, args, edges,
-    y_4b, y_2b, y_model, err_tot, err_stat,
+    y_4b, y_2b, y_model, err_tot, err_stat, err_stat_2b,
     ratio_4b_2b, ratio_4b_2b_w, ratio_err_tot, ratio_err_stat,
     chi2_val, chi2_2b, err_stat_4b=None, 
     output_dirname=f"{dir_suffix}Closure_Plots",
     normalize_shapes=True,
     x_scale_log=False,
 ):
+    if err_stat_4b is None:
+        raise ValueError("err_stat_4b is required for closure-plot ratio errors")
+
     if normalize_shapes:
         int_4b  = np.sum(y_4b)  or 1e-10
         int_2b  = np.sum(y_2b)  or 1e-10
@@ -139,11 +150,49 @@ def plot_evaluation(
         y_model = y_model / int_2bw
         err_tot = err_tot / int_2bw
         err_stat = err_stat / int_2bw
-        ratio_4b_2b   = y_4b / np.where(y_2b   > 0, y_2b,   1e-10)
-        ratio_4b_2b_w = y_4b / np.where(y_model > 0, y_model, 1e-10)
-        rel_err_num = err_stat_4b / np.where(y_4b > 0, y_4b, 1e-10)
-        rel_err_den = err_stat / np.where(y_2b > 0, y_2b, 1e-10)
-        ratio_err_4b2b = ratio * np.sqrt(rel_err_num**2 + rel_err_den**2)
+        err_stat_2b = err_stat_2b / int_2b
+        err_stat_4b = err_stat_4b / int_4b
+
+    bin_widths = np.diff(edges)
+    if np.any(bin_widths <= 0):
+        raise ValueError(f"Non-positive bin width found for {var}: {bin_widths}")
+
+    y_4b = y_4b / bin_widths
+    y_2b = y_2b / bin_widths
+    y_model = y_model / bin_widths
+    err_tot = err_tot / bin_widths
+    err_stat = err_stat / bin_widths
+    err_stat_2b = err_stat_2b / bin_widths
+    err_stat_4b = err_stat_4b / bin_widths
+
+    ratio_4b_2b = np.divide(
+        y_4b, y_2b, out=np.zeros_like(y_4b), where=y_2b > 0
+    )
+    ratio_4b_2b_w = np.divide(
+        y_4b, y_model, out=np.zeros_like(y_4b), where=y_model > 0
+    )
+    ratio_err_4b2b = np.sqrt(
+        np.divide(err_stat_4b, y_2b, out=np.zeros_like(err_stat_4b), where=y_2b > 0)**2
+        + np.divide(y_4b * err_stat_2b, y_2b**2,
+                    out=np.zeros_like(y_4b), where=y_2b > 0)**2
+    )
+    ratio_err_4b2b_w = np.sqrt(
+        np.divide(err_stat_4b, y_model, out=np.zeros_like(err_stat_4b), where=y_model > 0)**2
+        + np.divide(y_4b * err_stat, y_model**2,
+                    out=np.zeros_like(y_4b), where=y_model > 0)**2
+    )
+    ratio_err_tot = np.divide(
+        err_tot, y_model, out=np.zeros_like(err_tot), where=y_model > 0
+    )
+    ratio_err_stat = np.divide(
+        err_stat, y_model, out=np.zeros_like(err_stat), where=y_model > 0
+    )
+    chi2_2b = _chi2_per_ndf(
+        y_4b, y_2b, err_stat_4b, err_stat_2b, normalize_shapes
+    )
+    chi2_val = _chi2_per_ndf(
+        y_4b, y_model, err_stat_4b, err_tot, normalize_shapes
+    )
 
     hep.style.use("CMS")
     fig, (ax, rax) = plt.subplots(
@@ -171,7 +220,7 @@ def plot_evaluation(
         rax.set_xscale("log")
 
     ax.set_xlim(edges[0], edges[-1])
-    ax.set_ylabel("Arbitrary units")
+    ax.set_ylabel("Arbitrary units / bin width")
 
     x_centers = 0.5 * (edges[:-1] + edges[1:])
     rax.axhline(1.0, color="black", linestyle="--")
@@ -182,7 +231,7 @@ def plot_evaluation(
     rax.fill_between(edges, r_band_low, r_band_high, step="post", color="gray", alpha=0.3)
     rax.errorbar(x_centers, ratio_4b_2b, yerr=ratio_err_4b2b, fmt="o", color="red",
                  label=rf"{labels[0]}/{labels[1]} $\chi^2/NDF={chi2_2b:.2f}$")
-    rax.errorbar(x_centers, ratio_4b_2b_w, yerr=rel_err_num, fmt="o", color="blue",
+    rax.errorbar(x_centers, ratio_4b_2b_w, yerr=ratio_err_4b2b_w, fmt="o", color="blue",
                  label=rf"{labels[0]}/{labels[2]} $\chi^2/NDF={chi2_val:.2f}$")
     rax.fill_between(edges, r_band_stat_low, r_band_stat_high, step="post",
                      facecolor="none", edgecolor="green", hatch="////", alpha=0.5)
@@ -221,6 +270,15 @@ def plot_evaluation_signal_region(
         err_tot = err_tot / int_2bw
         err_stat = err_stat / int_2bw
 
+    bin_widths = np.diff(edges)
+    if np.any(bin_widths <= 0):
+        raise ValueError(f"Non-positive bin width found for {var}: {bin_widths}")
+
+    y_2b = y_2b / bin_widths
+    y_model = y_model / bin_widths
+    err_tot = err_tot / bin_widths
+    err_stat = err_stat / bin_widths
+
     hep.style.use("CMS")
 
     fig, ax = plt.subplots(figsize=(15, 8))
@@ -243,7 +301,7 @@ def plot_evaluation_signal_region(
         ax.set_xscale("log")
 
     ax.set_xlim(edges[0], edges[-1])
-    ax.set_ylabel("Arbitrary units")
+    ax.set_ylabel("Arbitrary units / bin width")
 
     ax.legend(loc="best", ncol=1, fontsize="x-small")
 
@@ -707,6 +765,15 @@ def run_create_uncertainty_histograms(args):
              ratio_err_tot, ratio_err_stat, ratio_err_sys,
              err_nc, ratio_err_nonclosure, chi2_Nonc, err_stat_4b) = result_hist
 
+        h_2b_stat = f_in.Get(f"{var}_hist_2b_mean")
+        if not h_2b_stat:
+            raise ValueError(f"Unweighted 2b histogram not found for '{var}'")
+        err_stat_2b = np.array([
+            h_2b_stat.GetBinError(i) for i in range(1, h_2b_stat.GetNbinsX() + 1)
+        ])
+        if error_normalization and h_2b_stat.Integral() > 0:
+            err_stat_2b /= h_2b_stat.Integral()
+
         nbins       = len(edges) - 1
         edges_array = array.array("d", edges)
         epsilon     = 1e-6
@@ -756,8 +823,10 @@ def run_create_uncertainty_histograms(args):
                                            normalize_shapes=True, x_scale_log=x_log)
                 else:
                     plot_evaluation(var, args, edges, y_3T, y_2T, y_mean,
-                                    err_tot, err_stat, ratio_3b_2b, ratio_3b_2b_w,
+                                    err_tot, err_stat, err_stat_2b,
+                                    ratio_3b_2b, ratio_3b_2b_w,
                                     ratio_err_tot, ratio_err_stat, chi2_val, chi2_2b,
+                                    err_stat_4b=err_stat_4b,
                                     normalize_shapes=True, x_scale_log=x_log)
                     plot_ratio_uncertainty(var, args, edges, ratio_err_tot, ratio_err_stat,
                                         chi2_val, chi2_2b, ratio_err_sys,

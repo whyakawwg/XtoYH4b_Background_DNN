@@ -38,13 +38,19 @@ parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by d
 parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
 parser.add_argument('--foldN', default=0, type=int)
 parser.add_argument('--Nfold', default=None, type=int, help = "Specify number of folds for training or testing.")
-parser.add_argument('--SplitIndex', default=None, type=int, help = "Specify split number for 3b training: 0-9.")
+parser.add_argument('--SplitIndex', default=None, type=int, choices=range(5), help = "Specify split number for 3b training: 0-4.")
+parser.add_argument('--pair-index', default=0, type=int, choices=[0, 1, 2],
+                    help="Four-jet pairing index used for pairing-dependent training features (0, 1, or 2).")
 
 args = parser.parse_args()
 
-isHcand_index_available = False
+if args.TrainRegion == "3b" and args.SplitIndex is None:
+    parser.error("--SplitIndex is required for 3b training and must be in the range 0-4.")
 
-binning_map = build_binning_map(njets=4)
+pair_tag = f"pair{args.pair_index}"
+print(f"[PAIR] Selected four-jet pairing index: {args.pair_index} ({pair_tag})")
+
+isHcand_index_available = False
 
 data_lumi = get_lumi(args.YEAR)
 
@@ -64,13 +70,13 @@ n_folds = args.Nfold
 if args.Nfold is None:
     print("Please provide the number of folds using --Nfold argument!")
     exit(1)
+if not 1 <= foldN <= n_folds:
+    parser.error(f"--foldN must be between 1 and {n_folds}.")
 
 if n_folds == 10:
     get_fold_filelists = get_10fold_filelists
-elif n_folds == 5:
-    get_fold_filelists = get_5fold_filelists
 else:
-    print("Currently only 5-fold and 10-fold are supported.")
+    print("Currently only 10-fold training is supported.")
     exit(1)
 
 YEAR = args.YEAR
@@ -81,11 +87,11 @@ runType = args.runType
 if args.runType == "train-only":
     if args.TrainRegion == "3b":
         SplitIndex = args.SplitIndex
-        plot_dir =  f"../{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}/MODEL_{foldN}_{SplitIndex}/"
-        model_dir = f"../{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}/MODEL_{foldN}_{SplitIndex}/"
+        plot_dir =  f"../{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}/MODEL_{foldN}_{SplitIndex}_{pair_tag}/"
+        model_dir = f"../{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}/MODEL_{foldN}_{SplitIndex}_{pair_tag}/"
     else:
-        plot_dir =  f"../{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}/MODEL_{foldN}/"
-        model_dir = f"../{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}/MODEL_{foldN}/"
+        plot_dir =  f"../{args.YEAR}/{args.TrainRegion}/{args.Model}_plots/{args.Model}_plots_{Scaling}_{BalanceClass}/MODEL_{foldN}_{pair_tag}/"
+        model_dir = f"../{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{Scaling}_{BalanceClass}/MODEL_{foldN}_{pair_tag}/"
 
     os.makedirs(plot_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
