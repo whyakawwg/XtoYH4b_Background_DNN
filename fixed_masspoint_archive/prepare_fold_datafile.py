@@ -19,11 +19,9 @@ def calculate_and_save_norm_scale_metadata(file_paths, output_json, year_label):
         'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 'Hcand_mass'
     ]
 
-    # ``file_paths`` is a list for every year (including single-file years).
-    # Read and concatenate Tree_JetInfo from all eras so the normalization
-    # metadata is computed from the same inputs later added to the ROOT chain.
-    tree_paths = [f"{path}:Tree_JetInfo" for path in file_paths]
-    arr = uproot.concatenate(tree_paths, essential_columns, library="np")
+    with uproot.open(file_path) as f:
+        tree = f["Tree_JetInfo"]
+        arr = tree.arrays(essential_columns, library="np")
 
     h_mass = arr["Hcand_mass"]
     min_mask = (h_mass > 50) & (h_mass < 300)
@@ -112,7 +110,7 @@ if __name__ == "__main__":
     # Era Mapping Logic
     era_mapping = {
         "2022Full": ["2022", "2022EE"],
-        "2023Full": ["2023", "2023BPix"]
+        "2023Full": ["2023", "2023BPiX"]
     }
     subdirs = era_mapping.get(YEAR, [YEAR])
 

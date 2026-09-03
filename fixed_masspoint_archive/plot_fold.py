@@ -51,12 +51,9 @@ parser.add_argument('--splitfraction', default=0.2, type=float, help = "Fraction
 parser.add_argument('--Model', default="DNN", type=str, help = "Model for training")
 parser.add_argument('--runType', default="test-only", choices=["test-only"], type=str, help = "test-only")
 parser.add_argument('--TrainRegion', default="4b", choices=["4b", "3b"], type=str, help = "Region of training data? Select from: '4b', '3b'. Even test-only, need to specify train region for the model.")
-parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "4bHiggsMW", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '4bHiggsMW', '3btest', '3bHiggsMW' or None if train-only.")
+parser.add_argument('--TestRegion', default=None, choices=[None, "4btest", "3btest", "3bHiggsMW"], type=str, help = "Rregion to run the test? Select from: '4btest', '3btest', '3bHiggsMW' or None if train-only.")
 parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by default.")
 parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
-parser.add_argument('--MX', default=None, type=int, help="Signal X mass point for 4b evaluation plots.")
-parser.add_argument('--MY', default=None, type=int, help="Signal Y mass point for 4b evaluation plots.")
-parser.add_argument('--SplitIndex', default=None, type=int, choices=range(5), help="Selected 3b validation split: 0-4.")
 
 parser.add_argument('--Nfold', default=None, type=int, help = "Specify fold number for training or testing.")
 
@@ -65,20 +62,17 @@ args = parser.parse_args()
 n_folds = args.Nfold
 year_label = args.YEAR
 
-if (args.MX is None) != (args.MY is None):
-    parser.error("--MX and --MY must be provided together.")
-if args.MX is None:
-    parser.error("--MX and --MY are required for evaluation plots.")
+n_splits = 5           
+n_folds_per_split = args.Nfold if args.Nfold else 10
+total_models = n_splits * n_folds_per_split # 50 models total
 
 if args.TrainRegion == "3b":
-    if args.SplitIndex is None:
-        parser.error("--SplitIndex is required for 3b evaluation plots.")
-    input_file = f"{args.TestRegion}_OnlyPhysical_SplitIndex{args.SplitIndex}_MX-{args.MX}_MY-{args.MY}.root"
-    print(f"[INFO] 3b Mode: Using {input_file} with the 10-fold SplitIndex{args.SplitIndex} ensemble.")
-    output_dir = f"Plots_Evaluation_3b_SplitIndex{args.SplitIndex}_fold{n_folds}_MX-{args.MX}_MY-{args.MY}"
+    input_file = f"{args.TestRegion}_OnlyPhysical.root"
+    print(f"[INFO] 3b Mode: Using {input_file} with 50-model ensemble.")
+    output_dir = f"Plots_Evaluation_3b_fold{n_folds}"
 else:
-    input_file = f"{args.TestRegion}_OnlyPhysical_MX-{args.MX}_MY-{args.MY}.root"
-    output_dir = f"Plots_Evaluation_fold{n_folds}_MX-{args.MX}_MY-{args.MY}"
+    input_file = f"{args.TestRegion}_OnlyPhysical.root"
+    output_dir = f"Plots_Evaluation_fold{n_folds}"
 
 os.makedirs(output_dir, exist_ok=True)
 
@@ -123,34 +117,8 @@ with open(log_filename1, "w") as f_log1:
     with open(log_filename2, "w") as f_log2:
         for var in vars_to_plot:
             edges, y_model, y_4b, y_2b, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_stat_4b= get_hist_with_total_error(
-                f, var, n_folds, normalize=normalize, TrainRegion=args.TrainRegion,
-                SplitIndex=args.SplitIndex
+                f, var, n_folds, normalize=normalize, TrainRegion=args.TrainRegion
             )
-
-            # The helper normalizes each histogram to unit area but returns a
-            # probability per bin. Convert bin contents and absolute errors to
-            # densities so variable-width bins are displayed correctly.
-            bin_widths = np.diff(edges)
-            if np.any(bin_widths <= 0):
-                raise ValueError(f"Non-positive bin width found for {var}: {bin_widths}")
-
-            h_2b_stat = f.Get(f"{var}_hist_2b_mean")
-            if not h_2b_stat:
-                raise ValueError(f"Unweighted 2b histogram not found for '{var}'")
-            err_stat_2b = np.array([
-                h_2b_stat.GetBinError(i) for i in range(1, h_2b_stat.GetNbinsX() + 1)
-            ])
-            if normalize and h_2b_stat.Integral() > 0:
-                err_stat_2b /= h_2b_stat.Integral()
-
-            y_model = y_model / bin_widths
-            y_4b = y_4b / bin_widths
-            y_2b = y_2b / bin_widths
-            err_tot = err_tot / bin_widths
-            err_stat = err_stat / bin_widths
-            err_sys = err_sys / bin_widths
-            err_stat_4b = err_stat_4b / bin_widths
-            err_stat_2b = err_stat_2b / bin_widths
 
             result_line = (f"{var}: Chi2/NDF (w/ total err) = {chi2_val:.3f} | ")
             f_log1.write(result_line + "\n")
@@ -185,15 +153,15 @@ with open(log_filename1, "w") as f_log1:
                 ax.set_yscale("log")
 
             ax.set_xlim(edges[0], edges[-1])
-            ax.set_ylabel("Arbitrary units / bin width")
+            ax.set_ylabel("Arbitrary units")
 
             x_centers = 0.5 * (edges[:-1] + edges[1:])
             rax.axhline(1.0, color='black', linestyle='--')
             
-            ratio = np.divide(y_4b, y_model, out=np.zeros_like(y_4b), where=y_model > 0)
-            r_raw = np.divide(y_4b, y_2b, out=np.zeros_like(y_4b), where=y_2b > 0)
-
             denom = np.where(y_model > 0, y_model, 1e-10)
+            ratio = y_4b / denom
+            demon_2b = np.where(y_2b > 0, y_2b, 1e-10)
+            r_raw = y_4b / demon_2b
 
             rel_err_tot   = err_tot / denom
             r_band_low  = np.append(1.0 - rel_err_tot, (1.0 - rel_err_tot)[-1])
@@ -204,21 +172,14 @@ with open(log_filename1, "w") as f_log1:
             r_band_stat_high = np.append(1.0 + rel_err_stat,   (1.0 + rel_err_stat)[-1])
             rel_err_sys = err_sys / denom
 
-            ratio_err_4b2b = np.sqrt(
-                np.divide(err_stat_4b, y_2b, out=np.zeros_like(err_stat_4b), where=y_2b > 0)**2
-                + np.divide(y_4b * err_stat_2b, y_2b**2,
-                            out=np.zeros_like(y_4b), where=y_2b > 0)**2
-            )
-            ratio_err_4b2b_w = np.sqrt(
-                np.divide(err_stat_4b, y_model, out=np.zeros_like(err_stat_4b), where=y_model > 0)**2
-                + np.divide(y_4b * err_stat, y_model**2,
-                            out=np.zeros_like(y_4b), where=y_model > 0)**2
-            )
+            rel_err_num = err_stat_4b / np.where(y_4b > 0, y_4b, 1e-10)
+            rel_err_den = err_stat / demon_2b
+            ratio_err_4b2b = ratio * np.sqrt(rel_err_num**2 + rel_err_den**2)
 
 
             rax.fill_between(edges, r_band_low, r_band_high, step='post', color='gray', alpha=0.3)
             rax.errorbar(x_centers, r_raw, yerr=ratio_err_4b2b, fmt='o', color='red', label=rf"{labels[0]}/{labels[1]} $\frac{{\chi^2}}{{NDF}}={chi2_2b:.2f}$")
-            rax.errorbar(x_centers, ratio, yerr=ratio_err_4b2b_w, fmt='o', color='blue', label=rf"{labels[0]}/{labels[2]} $\frac{{\chi^2}}{{NDF}}={chi2_val:.2f}$")
+            rax.errorbar(x_centers, ratio, yerr=rel_err_num,fmt='o', color='blue', label=rf"{labels[0]}/{labels[2]} $\frac{{\chi^2}}{{NDF}}={chi2_val:.2f}$")
             rax.fill_between(edges, r_band_stat_low, r_band_stat_high, step='post', facecolor='none', edgecolor='green', hatch='////', alpha=0.5)
 
             rax.set_ylim(0.5, 1.5)
@@ -232,21 +193,12 @@ with open(log_filename1, "w") as f_log1:
 
             plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_evaluation.png", dpi=300, bbox_inches="tight")
             plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_evaluation.pdf", bbox_inches="tight")
-
-            if var in ["MX", "MY"]:
-                rax.set_xscale("log")
-                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_evaluation_logx.png", dpi=300, bbox_inches="tight")
-                plt.savefig(f"{output_dir}/{var}_{args.TestRegion}_evaluation_logx.pdf", bbox_inches="tight")
-
             plt.close()
 
             if var == "Score":
                 if args.TrainRegion == "3b":
-                    folds_y = get_split_fold_hists(
-                        f, var, n_splits=5, n_folds=n_folds,
-                        scale_factor=scale_factor, SplitIndex=args.SplitIndex
-                    )
-                    color_list = ["yellow" for _ in range(n_folds)]
+                    folds_y = get_split_fold_hists(f, var, n_splits=5, n_folds=n_folds, scale_factor=scale_factor)
+                    color_list = ["yellow" for i in range(50)]
                     line_alpha = 0.3
                     line_width = 0.5
                 else:
@@ -257,8 +209,6 @@ with open(log_filename1, "w") as f_log1:
                         color_list = ["darkred", "darkorange", "olivedrab", "indigo", "teal"]
                     line_alpha = 0.7
                     line_width = 1
-
-                folds_y = [y_fold / bin_widths for y_fold in folds_y]
 
                 fig5, (ax5w, rax5w) = plt.subplots(
                     2, 1,
@@ -278,19 +228,13 @@ with open(log_filename1, "w") as f_log1:
                 ax5w.fill_between(edges, band_low_step, band_high_step, step='post', color='gray', alpha=0.3, label="Total Uncertainty")
                 ax5w.fill_between(edges, stat_low_step, stat_high_step, step='post', facecolor='none', edgecolor='green', hatch='////', alpha=0.5, label="Statistical Uncertainty")
                 ax5w.set_xlim(edges[0], edges[-1])
-                ax5w.set_ylabel("Arbitrary units / bin width")
+                ax5w.set_ylabel("Arbitrary units")
 
                 # Calculate uncertainties from per bins
-                mean_hist, sys_errs_hist, = calculate_error_from_histograms(
-                    f, var, n_folds, TrainRegion=args.TrainRegion,
-                    SplitIndex=args.SplitIndex
-                )
+                mean_hist, sys_errs_hist, = calculate_error_from_histograms(f, var, n_folds, TrainRegion=args.TrainRegion) 
                 rel_sys_errs_hist   = sys_errs_hist / np.where(mean_hist > 0, mean_hist, 1e-10)
 
-                fold_errors_2bw = get_fold_errors(
-                    f, var, n_folds, TrainRegion=args.TrainRegion,
-                    SplitIndex=args.SplitIndex
-                ) # purely statistical errors from each fold
+                fold_errors_2bw = get_fold_errors(f, var, n_folds, TrainRegion=args.TrainRegion) # purely statistical errors from each fold
 
                 # check if 2b error same as fold error and save to f_log
         
@@ -301,12 +245,13 @@ with open(log_filename1, "w") as f_log1:
                     f_log2.write(f"Stat {labels[0]} error: {err_4b[i]}, {labels[1]} error: {err_2b[i]}\n")
                     
                     if args.TrainRegion == "3b":
-                        for k in range(1, n_folds + 1):
-                            if k - 1 < len(fold_errors_2bw):
-                                val = fold_errors_2bw[k - 1][i]
-                                f_log2.write(
-                                    f"Fold {k} Split {args.SplitIndex} bin {i+1} error: {val}\n"
-                                )
+                        for j in range(5): 
+                            for k in range(1, n_folds+1): 
+                                flat_idx = (j * n_folds) + (k - 1)
+
+                                if flat_idx < len(fold_errors_2bw):
+                                    val = fold_errors_2bw[flat_idx][i]
+                                    f_log2.write(f"Fold {k+1} Split {j} bin {i+1} error: {val}\n")
                     else:
                         for k in range(n_folds):
                             if k < len(fold_errors_2bw):

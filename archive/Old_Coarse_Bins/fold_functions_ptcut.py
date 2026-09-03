@@ -1417,7 +1417,7 @@ def get_unrolled_bins_for_my(target_my_bins, mx_bin_edges=None, my_bin_edges=Non
     each MY bin to its corresponding 1D unrolled bin indices.
     
     Args:
-        target_my_bins (list of int): e.g., [6, 7, 8, 9, 10, 11]
+        target_my_bins (list of int): e.g., [6, 7, 8]
         mx_bin_edges (np.array, optional): Edges for MX.
         my_bin_edges (np.array, optional): Edges for MY.
         
@@ -1425,14 +1425,11 @@ def get_unrolled_bins_for_my(target_my_bins, mx_bin_edges=None, my_bin_edges=Non
         dict: Format {my_bin_index: [list_of_unrolled_1d_indices]}
     """
     
-    # Use the analysis binning as the single source of truth. Explicit arrays
-    # remain supported for callers that intentionally need another binning.
-    if mx_bin_edges is None or my_bin_edges is None:
-        binning_map = build_binning_map(njets=4)
-        if mx_bin_edges is None:
-            mx_bin_edges = np.asarray(binning_map["MX"])
-        if my_bin_edges is None:
-            my_bin_edges = np.asarray(binning_map["MY"])
+    # Default edges if none are provided
+    if mx_bin_edges is None:
+        mx_bin_edges = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+    if my_bin_edges is None:
+        my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
 
     n_my_bins = len(my_bin_edges) - 1
     n_mx_bins = len(mx_bin_edges) - 1
@@ -1472,14 +1469,11 @@ def get_binning_mappings(mx_bin_edges=None, my_bin_edges=None):
       - 'unrolled_to_label': dict[int, str] -> {unrolled_bin: "MX..._MY..."}
     """
     
-    # Use the analysis binning as the single source of truth. Explicit arrays
-    # remain supported for callers that intentionally need another binning.
-    if mx_bin_edges is None or my_bin_edges is None:
-        binning_map = build_binning_map(njets=4)
-        if mx_bin_edges is None:
-            mx_bin_edges = np.asarray(binning_map["MX"])
-        if my_bin_edges is None:
-            my_bin_edges = np.asarray(binning_map["MY"])
+    # Default edges
+    if mx_bin_edges is None:
+        mx_bin_edges = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+    if my_bin_edges is None:
+        my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
 
     n_my_bins = len(my_bin_edges) - 1
     n_mx_bins = len(mx_bin_edges) - 1

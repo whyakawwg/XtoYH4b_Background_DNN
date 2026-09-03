@@ -34,21 +34,12 @@ import json
 
 dir_suffix = ""
 
-HIGGS_WINDOW_LOW = 90.0
-HIGGS_WINDOW_HIGH = 150.0
-ANALYSIS_BINNING = build_binning_map(njets=4)
-MX_BIN_EDGES = np.asarray(ANALYSIS_BINNING["MX"])
-MY_BIN_EDGES = np.asarray(ANALYSIS_BINNING["MY"])
-N_MX_BINS = len(MX_BIN_EDGES) - 1
-# ROOT bin indices whose intervals overlap the 90--150 GeV Higgs window.
-TARGET_MY_BINS = [
-    index
-    for index, (low, high) in enumerate(
-        zip(MY_BIN_EDGES[:-1], MY_BIN_EDGES[1:]), start=1
-    )
-    if low < HIGGS_WINDOW_HIGH and high > HIGGS_WINDOW_LOW
-]
-# nc_3b is disabled in these MY slices for now
+MX_BIN_EDGES = np.array([250, 300, 375, 450, 550, 675, 825, 1000, 1250, 1600, 2000, 2500, 3000, 4000, 5000])
+MY_BIN_EDGES = np.array([30, 40, 50, 60, 75, 90, 110, 135, 165, 200, 250, 300, 375, 450, 550, 675, 825, 1000, 1250, 1600, 2000, 2500, 3000, 4000])
+N_MX_BINS = len(MX_BIN_EDGES) - 1  # 14
+TARGET_MY_BINS = [6, 7, 8]         # MY bins with lower edges 90, 110, 135
+# nc_3b is intentionally disabled in these MY slices for now.  Keeping this
+# separate makes it straightforward to enable them for nc_3b in the future.
 NC_3B_EXCLUDED_MY_BINS = list(TARGET_MY_BINS)
 
 LOG_VARS = [
@@ -658,11 +649,7 @@ def plot_separateMY_uncertainty_histograms(uncertainty_filename, args, vars_to_p
         if var not in ("MY", "Unrolled_MXMY"):
             return None
         hists, labels, colors, alphas, ls = [], [], [], [], []
-        colors_by_bin = plt.get_cmap("tab10")
-        style_map = {
-            mb: colors_by_bin(index % 10)
-            for index, mb in enumerate(TARGET_MY_BINS)
-        }
+        style_map = {6: "cyan", 7: "olive", 8: "brown"}
         for mb in TARGET_MY_BINS:
             for direction in ("up", "down"):
                 name = f"{var}_2b_w_mybin_{mb}_{direction}"
@@ -692,19 +679,19 @@ def add_decorrelated_nc_uncertainty(
     ---------------
     • h_nc_up / h_nc_down  — NC variation with target MY bins zeroed (set to nominal),
       written under the *same* histogram names so they replace the originals when hadded.
-    • {var}_2b_w_mybin_{6..11}_{up,down}  — 100 % up/down per target MY bin (same
+    • {var}_2b_w_mybin_{6,7,8}_{up,down}  — 100 % up/down per target MY bin (same
       naming as add_separate_my_125_uncertainty for consistency).
 
     MX distribution
     ---------------
-    • {var}_2b_w_nc_bin{1..N_MX_BINS}_{up,down} — NC variation decorrelated by MX bin:
+    • {var}_2b_w_nc_bin{1..14}_{up,down}  — NC variation decorrelated by MX bin:
       only the target bin takes the NC value; all others remain at nominal.
 
     Unrolled_MXMY distribution
     --------------------------
-    • {var}_2b_w_nc_bin{1..N_MX_BINS}_{up,down} — MX-decorrelated NC (same naming as MX);
+    • {var}_2b_w_nc_bin{1..14}_{up,down}  — MX-decorrelated NC (same naming as MX);
       unrolled bins correlated to target MY bins are kept at nominal.
-    • {var}_2b_w_mybin_{6..11}_mx{1..N_MX_BINS}_{up,down} — 100 % MY-bin uncertainty
+    • {var}_2b_w_mybin_{6,7,8}_mx{1..14}_{up,down}  — 100 % MY-bin uncertainty
       decorrelated further by MX bin:  only the (my_bin × mx_bin) intersection varies.
     """
     if target_my_bins is None:
@@ -804,7 +791,7 @@ def add_decorrelated_nc_uncertainty(
     if h_nom_unr and h_nc_up_unr and h_nc_dn_unr:
         n_bins_unr = h_nom_unr.GetNbinsX()
 
-        # 3a. One MX-decorrelated NC histogram pair per active MX bin.
+        # 3a. MX-decorrelated NC (14 histograms)
         #     Bins belonging to target MY slices → held at nominal (not NC)
         for mx_bin in range(1, N_MX_BINS + 1):
             unc_name = f"nc_bin{mx_bin}"
@@ -818,7 +805,7 @@ def add_decorrelated_nc_uncertainty(
                 is_this_mx   = (unr_to_mx.get(b) == mx_bin)
 
                 if not is_target_my and is_this_mx:
-                    # Apply NC only in this MX slice outside the Higgs-window MY bins.
+                    # Apply NC variation only for this MX slice (excluding MY 6/7/8)
                     h_up.SetBinContent(b,   h_nc_up_unr.GetBinContent(b))
                     h_down.SetBinContent(b, h_nc_dn_unr.GetBinContent(b))
                 # else: keep cloned nominal (handles both target-MY and other-MX bins)
@@ -830,7 +817,7 @@ def add_decorrelated_nc_uncertainty(
         print(f"[Unrolled] Done — {N_MX_BINS} MX-decorrelated NC uncertainties "
               f"(MY bins {target_my_bins} held at nominal).")
 
-        # 3b. One 100 % uncertainty per Higgs-window MY-bin × MX-bin pair.
+        # 3b. 3 × 14 = 42 100 % MY-bin uncertainties, decorrelated by MX bin
         #     For each (my_bin, mx_bin) pair, only the intersection moves.
         for mb in target_my_bins:
             unrolled_for_my = my_to_unr.get(mb, [])

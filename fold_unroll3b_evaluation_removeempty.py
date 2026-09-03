@@ -32,6 +32,7 @@ parser.add_argument('--isMC', default=0, type=int, help = "MC or Data? Data by d
 parser.add_argument('--SpecificModelTest', default=None, type=str, help = "Input specific model path for testing.")
 parser.add_argument('--MX', required=True, type=int, help="Signal X mass point.")
 parser.add_argument('--MY', required=True, type=int, help="Signal Y mass point.")
+parser.add_argument('--SplitIndex', required=True, type=int, choices=range(5), help="3b validation split to use: 0-4.")
 
 parser.add_argument('--Nfold', default=None, type=int, help = "Specify number of folds for training or testing.")
 
@@ -63,9 +64,9 @@ def mass_point_to_index(file_list, mx, my):
 
     if not mappings or any(mapping != mappings[0] for mapping in mappings[1:]):
         raise RuntimeError("Missing or ambiguous mass-point mappings across input files/entries.")
-    if len(mappings[0]) != 272:
+    if len(mappings[0]) != 273:
         raise RuntimeError(
-            f"Malformed mass-point mapping: expected 272 entries, found {len(mappings[0])}."
+            f"Malformed mass-point mapping: expected 273 entries, found {len(mappings[0])}."
         )
     matches = [i for i, point in enumerate(mappings[0]) if point == (mx, my)]
     if len(matches) != 1:
@@ -108,10 +109,10 @@ def load_pairing_inputs(file_list, source_indices, feature_names, mass_index):
                 local_indices = source_indices[positions] - global_start
                 best_pairs = arrays["best_pair_sig"][local_indices]
                 lengths = ak.to_numpy(ak.num(best_pairs, axis=1))
-                if np.any(lengths < 272):
-                    bad = np.flatnonzero(lengths < 272)[0]
+                if np.any(lengths < 273):
+                    bad = np.flatnonzero(lengths < 273)[0]
                     raise ValueError(
-                        f"best_pair_sig must contain at least 272 entries; selected event "
+                        f"best_pair_sig must contain at least 273 entries; selected event "
                         f"{positions[bad]} contains {lengths[bad]}."
                     )
                 selected_pairs = ak.to_numpy(best_pairs[:, mass_index])
@@ -227,63 +228,64 @@ if args.runType == "test-only":
     for i, name in enumerate(feature_names):
         var_data_map[name] = features_raw[:, i]
 
-    n_splits = 5 
-    
-    base_model_dir = f"../{args.YEAR}/{args.TrainRegion}/Models/Model_{args.Model}_{'Scaling' if args.isScaling else 'NoScaling'}_BalanceClass/"
-    print(f"Starting Grand Ensemble Prediction for {n_splits} splits x {n_folds} folds...")
+    base_model_dir = (
+        f"/data/dust/user/wanghaoy/XtoYH4b/Background_{args.YEAR}/{args.YEAR}/"
+        f"{args.TrainRegion}/Models/Model_{args.Model}_"
+        f"{'Scaling' if args.isScaling else 'NoScaling'}_BalanceClass/"
+    )
+    print(f"Starting ensemble prediction for SplitIndex {args.SplitIndex} x {n_folds} folds...")
     
     all_fold_scores = []
     all_fold_weights = []
     
     model_metadata = [] 
 
-    for split in range(n_splits):
-        for fold in range(1, n_folds + 1):
-            models = {split: {fold: []}}
-            X_folds = []
-            for pair_index in range(3):
-                fold_dir = os.path.join(
-                    base_model_dir, f"MODEL_{fold}_{split}_pair{pair_index}"
+    split = args.SplitIndex
+    for fold in range(1, n_folds + 1):
+        models = {split: {fold: []}}
+        X_folds = []
+        for pair_index in range(3):
+            fold_dir = os.path.join(
+                base_model_dir, f"MODEL_{fold}_{split}_pair{pair_index}"
+            )
+            model_path = os.path.join(fold_dir, "model.h5")
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(
+                    f"Missing split-fold-pair model for split {split}, fold {fold}, "
+                    f"pair {pair_index}: {model_path}"
                 )
-                model_path = os.path.join(fold_dir, "model.h5")
-                if not os.path.exists(model_path):
+            if args.isScaling == 1:
+                scaler_path = os.path.join(fold_dir, "scaler.pkl")
+                if not os.path.exists(scaler_path):
                     raise FileNotFoundError(
-                        f"Missing split-fold-pair model for split {split}, fold {fold}, "
-                        f"pair {pair_index}: {model_path}"
+                        f"Missing scaler for split {split}, fold {fold}, pair "
+                        f"{pair_index}: {scaler_path}"
                     )
-                if args.isScaling == 1:
-                    scaler_path = os.path.join(fold_dir, "scaler.pkl")
-                    if not os.path.exists(scaler_path):
-                        raise FileNotFoundError(
-                            f"Missing scaler for split {split}, fold {fold}, pair "
-                            f"{pair_index}: {scaler_path}"
-                        )
-                    X_folds.append(
-                        joblib.load(scaler_path).transform(features_by_pair[pair_index])
-                    )
-                else:
-                    X_folds.append(features_by_pair[pair_index])
-                models[split][fold].append(load_model(model_path))
+                X_folds.append(
+                    joblib.load(scaler_path).transform(features_by_pair[pair_index])
+                )
+            else:
+                X_folds.append(features_by_pair[pair_index])
+            models[split][fold].append(load_model(model_path))
 
-            pair_scores = np.array([
-                models[split][fold][pair_index].predict(
-                    X_folds[pair_index], batch_size=4096, verbose=0
-                ).ravel()
-                for pair_index in range(3)
-            ])
-            score = pair_scores[pair_indices, np.arange(len(pair_indices))]
-            all_fold_scores.append(score)
+        pair_scores = np.array([
+            models[split][fold][pair_index].predict(
+                X_folds[pair_index], batch_size=4096, verbose=0
+            ).ravel()
+            for pair_index in range(3)
+        ])
+        score = pair_scores[pair_indices, np.arange(len(pair_indices))]
+        all_fold_scores.append(score)
 
-            epsilon = 1e-10
-            fold_weights = score / (1.0 - score + epsilon)
-            all_fold_weights.append(fold_weights)
-            model_metadata.append( (split, fold) )
+        epsilon = 1e-10
+        fold_weights = score / (1.0 - score + epsilon)
+        all_fold_weights.append(fold_weights)
+        model_metadata.append((split, fold))
 
-            del models
-            
-            print(f"  -> Split {split} Fold {fold} predicted.")
-        import gc
-        gc.collect()
+        del models
+        print(f"  -> Split {split} Fold {fold} predicted.")
+    import gc
+    gc.collect()
 
     all_fold_scores = np.array(all_fold_scores)
     all_fold_weights = np.array(all_fold_weights)
@@ -358,9 +360,9 @@ if args.runType == "test-only":
         var_data_map["Unrolled_MXMY"] = unrolled_index
         binning_map["Unrolled_MXMY"] = list(range(n_valid_bins + 1))
 
-    # output_filename = "OnlyPhysical_Unrolled_50Models.root"
     output_filename = (
-        f"{args.TestRegion}_{OUTPUT_FILENAME_suffix}_MX-{args.MX}_MY-{args.MY}.root"
+        f"{args.TestRegion}_{OUTPUT_FILENAME_suffix}_SplitIndex{args.SplitIndex}_"
+        f"MX-{args.MX}_MY-{args.MY}.root"
     )
     f_out = ROOT.TFile(output_filename, "RECREATE")
     

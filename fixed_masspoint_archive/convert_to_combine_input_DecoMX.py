@@ -2,27 +2,26 @@ import ROOT
 import argparse
 import sys
 
-sys.path.append("/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN")
+sys.path.insert(0, "/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN")
 from fold_functions_ptcut import build_binning_map
 
 parser = argparse.ArgumentParser(description="Convert background histograms to Combine input format")
 parser.add_argument("--YEAR", type=str, required=True, help="Data-taking year (e.g., 2024, 2025)")
-parser.add_argument("--MX", type=int, required=True, help="Signal X mass point.")
-parser.add_argument("--MY", type=int, required=True, help="Signal Y mass point.")
+
 args = parser.parse_args()
 YEAR = args.YEAR
-MASS_SUFFIX = f"_MX-{args.MX}_MY-{args.MY}"
+
 SIGNAL_STEM = (
-    f"NMSSM-XtoYHto4B_Par-MX-{args.MX}-MY-{args.MY}_"
+    f"NMSSM-XtoYHto4B_Par-MX-1000-MY-125_"
     "TuneCP5_13p6TeV_madgraph-pythia8"
 )
 
 # According to /afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/CombineHarvester/CombineTools/bin/CreateCards_XYHto4btest.C
 # SIGNAL_NAME = "NMSSM_XtoYHto4B_MX-1000_MY-150_TuneCP5_13p6TeV_madgraph-pythia8"
 # INPUT_FILE = "combine_inclusive_bkg.root"
-INPUT_FILE = f"combine_noempty_input_Scaled_{YEAR}{MASS_SUFFIX}.root"
+INPUT_FILE = f"combine_noempty_input_Scaled_{YEAR}.root"
 # OUTPUT_FILE = f"combine_input_XYH4b_{YEAR}_VR.root"
-OUTPUT_FILE = f"BkgEst_{SIGNAL_STEM}.root"
+OUTPUT_FILE = f"Output_Background_{YEAR}.root"
 
 HIGGS_WINDOW_LOW = 90.0
 HIGGS_WINDOW_HIGH = 150.0

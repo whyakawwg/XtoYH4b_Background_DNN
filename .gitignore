@@ -1,0 +1,7 @@
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+
+# Kerberos credential caches
+/run_scripts/wanghaoy.cc
+/fixed_masspoint_archive/run_scripts/wanghaoy.cc

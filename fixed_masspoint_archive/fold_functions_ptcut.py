@@ -1,6 +1,5 @@
 # fold_functions.py
 import uproot
-import awkward as ak
 import numpy as np
 import vector
 import matplotlib.pyplot as plt
@@ -249,128 +248,128 @@ def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
     h3T.Delete()
     h2T_w.Delete()
 
-# def build_binning_map(njets):
-#     """
-#     Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
-#     """
-#     bin_edges      = np.linspace(0, 1, 51)
-
-#     # mx_bin_edges   = np.array([110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
-#     mx_bin_edges   = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
-
-#     my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375, 
-#                              450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
-#     mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
-#     jet_mass_bin_edges = np.linspace(0, 100, 51)
-#     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
-#     eta_bin_edges  = np.linspace(-5, 5, 51)
-#     phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
-#     HT_bin_edges   = np.linspace(0, 2000, 51)
-#     dr_bin_edges   = np.linspace(0, 6.3, 51)
-#     pt_bin_edges   = np.linspace(0, 1000, 51)
-
-#     bin_map = {
-#         "MX": mx_bin_edges,
-#         "MY": my_bin_edges,
-#         "MH": mh_bin_edges,
-#         "Score": bin_edges,
-#         "n_jets_add": njets_add_bin_edges,
-#         "HT_additional": HT_bin_edges,
-#         "HT_4j": HT_bin_edges,
-#         "dR1_plot": dr_bin_edges,
-#         "dR2_plot": dr_bin_edges,
-#     }
-
-#     # jet AK4 vars
-#     for i in range(1, njets + 1):
-#         bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
-#         bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
-#         bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
-#         bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
-
-#     # Higgs candidates
-#     for v in ["pt", "eta", "phi"]:
-#         edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
-#         bin_map[f"Hcand_1_{v}"] = edges
-#         bin_map[f"Hcand_2_{v}"] = edges
-
-#     # H1/H2 deta/dphi/dR
-#     for h in ["H1", "H2"]:
-#         bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
-#         bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
-#         bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
-
-#     # H1H2 system
-#     bin_map["H1H2_pt"]   = pt_bin_edges
-#     bin_map["H1H2_eta"]  = eta_bin_edges
-#     bin_map["H1H2_phi"]  = phi_bin_edges
-#     bin_map["H1H2_deta"] = eta_bin_edges
-#     bin_map["H1H2_dphi"] = phi_bin_edges
-#     bin_map["H1H2_dR"]   = dr_bin_edges
-
-#     return bin_map
-
-# def build_fine_binning_map(njets):
-#     """
-#     Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
-#     """
-#     bin_edges      = np.linspace(0, 1, 51)
-
-#     # Fine bine: 39 for mx, 15 for my (standard: 14 and 23)
-#     mx_bin_edges   = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,2750,3000,3500,4000,4500])
-
-#     my_bin_edges = np.array([30,40,50,60,75,90,110,130,150,175,200,250,300,400,600,1000])
-#     mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
-#     jet_mass_bin_edges = np.linspace(0, 100, 51)
-#     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
-#     eta_bin_edges  = np.linspace(-5, 5, 51)
-#     phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
-#     HT_bin_edges   = np.linspace(0, 2000, 51)
-#     dr_bin_edges   = np.linspace(0, 6.3, 51)
-#     pt_bin_edges   = np.linspace(0, 1000, 51)
-
-#     bin_map = {
-#         "MX": mx_bin_edges,
-#         "MY": my_bin_edges,
-#         "MH": mh_bin_edges,
-#         "Score": bin_edges,
-#         "n_jets_add": njets_add_bin_edges,
-#         "HT_additional": HT_bin_edges,
-#         "HT_4j": HT_bin_edges,
-#         "dR1_plot": dr_bin_edges,
-#         "dR2_plot": dr_bin_edges,
-#     }
-
-#     # jet AK4 vars
-#     for i in range(1, njets + 1):
-#         bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
-#         bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
-#         bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
-#         bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
-
-#     # Higgs candidates
-#     for v in ["pt", "eta", "phi"]:
-#         edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
-#         bin_map[f"Hcand_1_{v}"] = edges
-#         bin_map[f"Hcand_2_{v}"] = edges
-
-#     # H1/H2 deta/dphi/dR
-#     for h in ["H1", "H2"]:
-#         bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
-#         bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
-#         bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
-
-#     # H1H2 system
-#     bin_map["H1H2_pt"]   = pt_bin_edges
-#     bin_map["H1H2_eta"]  = eta_bin_edges
-#     bin_map["H1H2_phi"]  = phi_bin_edges
-#     bin_map["H1H2_deta"] = eta_bin_edges
-#     bin_map["H1H2_dphi"] = phi_bin_edges
-#     bin_map["H1H2_dR"]   = dr_bin_edges
-
-#     return bin_map
-
 def build_binning_map(njets):
+    """
+    Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
+    """
+    bin_edges      = np.linspace(0, 1, 51)
+
+    # mx_bin_edges   = np.array([110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+    mx_bin_edges   = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+
+    my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375, 
+                             450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
+    mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
+    jet_mass_bin_edges = np.linspace(0, 100, 51)
+    njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
+    eta_bin_edges  = np.linspace(-5, 5, 51)
+    phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
+    HT_bin_edges   = np.linspace(0, 2000, 51)
+    dr_bin_edges   = np.linspace(0, 6.3, 51)
+    pt_bin_edges   = np.linspace(0, 1000, 51)
+
+    bin_map = {
+        "MX": mx_bin_edges,
+        "MY": my_bin_edges,
+        "MH": mh_bin_edges,
+        "Score": bin_edges,
+        "n_jets_add": njets_add_bin_edges,
+        "HT_additional": HT_bin_edges,
+        "HT_4j": HT_bin_edges,
+        "dR1_plot": dr_bin_edges,
+        "dR2_plot": dr_bin_edges,
+    }
+
+    # jet AK4 vars
+    for i in range(1, njets + 1):
+        bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
+        bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
+        bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
+        bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
+
+    # Higgs candidates
+    for v in ["pt", "eta", "phi"]:
+        edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
+        bin_map[f"Hcand_1_{v}"] = edges
+        bin_map[f"Hcand_2_{v}"] = edges
+
+    # H1/H2 deta/dphi/dR
+    for h in ["H1", "H2"]:
+        bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
+        bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
+        bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
+
+    # H1H2 system
+    bin_map["H1H2_pt"]   = pt_bin_edges
+    bin_map["H1H2_eta"]  = eta_bin_edges
+    bin_map["H1H2_phi"]  = phi_bin_edges
+    bin_map["H1H2_deta"] = eta_bin_edges
+    bin_map["H1H2_dphi"] = phi_bin_edges
+    bin_map["H1H2_dR"]   = dr_bin_edges
+
+    return bin_map
+
+def build_fine_binning_map(njets):
+    """
+    Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
+    """
+    bin_edges      = np.linspace(0, 1, 51)
+
+    # Fine bine: 39 for mx, 15 for my (standard: 14 and 23)
+    mx_bin_edges   = np.array([100,120,140,160,180,200,225,250,275,300,330,360,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400,1500,1600,1800,2000,2250,2500,2750,3000,3500,4000,4500])
+
+    my_bin_edges = np.array([30,40,50,60,75,90,110,130,150,175,200,250,300,400,600,1000])
+    mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
+    jet_mass_bin_edges = np.linspace(0, 100, 51)
+    njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
+    eta_bin_edges  = np.linspace(-5, 5, 51)
+    phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
+    HT_bin_edges   = np.linspace(0, 2000, 51)
+    dr_bin_edges   = np.linspace(0, 6.3, 51)
+    pt_bin_edges   = np.linspace(0, 1000, 51)
+
+    bin_map = {
+        "MX": mx_bin_edges,
+        "MY": my_bin_edges,
+        "MH": mh_bin_edges,
+        "Score": bin_edges,
+        "n_jets_add": njets_add_bin_edges,
+        "HT_additional": HT_bin_edges,
+        "HT_4j": HT_bin_edges,
+        "dR1_plot": dr_bin_edges,
+        "dR2_plot": dr_bin_edges,
+    }
+
+    # jet AK4 vars
+    for i in range(1, njets + 1):
+        bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
+        bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
+        bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
+        bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
+
+    # Higgs candidates
+    for v in ["pt", "eta", "phi"]:
+        edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
+        bin_map[f"Hcand_1_{v}"] = edges
+        bin_map[f"Hcand_2_{v}"] = edges
+
+    # H1/H2 deta/dphi/dR
+    for h in ["H1", "H2"]:
+        bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
+        bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
+        bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
+
+    # H1H2 system
+    bin_map["H1H2_pt"]   = pt_bin_edges
+    bin_map["H1H2_eta"]  = eta_bin_edges
+    bin_map["H1H2_phi"]  = phi_bin_edges
+    bin_map["H1H2_deta"] = eta_bin_edges
+    bin_map["H1H2_dphi"] = phi_bin_edges
+    bin_map["H1H2_dR"]   = dr_bin_edges
+
+    return bin_map
+
+def build_Run2_binning_map(njets):
     """
     Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
     """
@@ -608,14 +607,13 @@ def get_fold_hists(file, var_name, n_folds, scale_factor=1.0):
         fold_data.append(y)
     return fold_data
 
-def get_split_fold_hists(file, var_name, n_splits=5, n_folds=10, scale_factor=1.0, SplitIndex=None):
+def get_split_fold_hists(file, var_name, n_splits=5, n_folds=10, scale_factor=1.0):
     """
     Helper to load fold histograms for 5-fold case which has 5 splits. Returns a list of arrays, one per fold, containing the bin contents. Assumes histograms are named like {var_name}_hist_2b_split{split}_fold{fold}.
     """
     fold_data = []
 
-    split_indices = [SplitIndex] if SplitIndex is not None else range(n_splits)
-    for split in split_indices:
+    for split in range(n_splits):
         for fold in range(1, n_folds + 1):
             h_name = f"{var_name}_hist_2b_split{split}_fold{fold}"
             h = file.Get(h_name)
@@ -644,14 +642,13 @@ def check_h_nomerror_2b_staterror(file, var_name):
         if nom_err == stat_err:
             print(f"Note: For {var_name} bin {i}, nom error {nom_err} == 2b stat error {stat_err}")
 
-def get_fold_errors(file, var_name, n_folds, TrainRegion="4b", SplitIndex=None):
+def get_fold_errors(file, var_name, n_folds, TrainRegion="4b"):
     """Helper to get statistical errors for each fold histogram"""
     fold_errors = []
     ratio_errs = []
 
     if TrainRegion == "3b":
-        split_indices = [SplitIndex] if SplitIndex is not None else range(5)
-        for split in split_indices:
+        for split in range(5):
             for i in range(1, n_folds + 1):
                 h = file.Get(f"{var_name}_hist_2b_split{split}_fold{i}")
                 if not h:
@@ -702,14 +699,12 @@ def check_4b_2b_errors(file, var_name):
 
     return ratio_err_4b, ratio_err_2b, n
 
-def calculate_error_from_histograms(file, var_name, n_folds, TrainRegion="4b", SplitIndex=None):
+def calculate_error_from_histograms(file, var_name, n_folds, TrainRegion="4b"):
     """
     Calculate the systematic uncertainty from the spread of fold histograms for each bin. Use the same percentile methods.
     """
     if TrainRegion == "3b":
-        fold_ys = get_split_fold_hists(
-            file, var_name, n_splits=5, n_folds=n_folds, SplitIndex=SplitIndex
-        )
+        fold_ys = get_split_fold_hists(file, var_name, n_splits=5, n_folds=n_folds)
     else:
         fold_ys = get_fold_hists(file, var_name, n_folds)
         
@@ -727,7 +722,7 @@ def calculate_error_from_histograms(file, var_name, n_folds, TrainRegion="4b", S
         sys_sigma[i] = (q84 - q16) / 2.0
     return mean, sys_sigma
 
-def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegion="4b", NonClosureFracPath=None, SplitIndex=None):
+def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegion="4b", NonClosureFracPath=None):
     """
     Currently the main function to get the errors. 
     Returns:
@@ -739,7 +734,7 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
     - scale_factor: factor by which histograms were scaled 
     - chi2_val: chi2 value comparing 3T to the mean of folds with total error
     - chi2_2b: chi2 value comparing 3T to the 2T histogram with only statistical error (for comparison)
-    - err_stat: weighted-prediction statistical errors from ROOT Sumw2
+    - err_stat: array of statistical errors from the 2T histogram
     - err_sys: array of systematic uncertainties derived from fold spread
     - err_tot: total error combining statistical and systematic in quadrature
     - err_nc: non-closure error if NonClosureFracPath is provided (only for 3bHMW)
@@ -753,27 +748,21 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
     # h_3T_ptr = file.Get(f"{var_name}_hist_{TrainRegion}_mean")
     h_3T_ptr = file.Get(f"{var_name}_hist_4b_mean")
     h_2T_ptr = file.Get(f"{var_name}_hist_2b_mean")
-    h_2T_w_ptr = file.Get(f"{var_name}_hist_2bw_mean")
-
-    if not h_2T_w_ptr:
-        raise ValueError(f"Mean weighted 2b histogram not found for '{var_name}'")
 
     h_3T = h_3T_ptr.Clone()
     h_2T = h_2T_ptr.Clone()
-    h_2T_w = h_2T_w_ptr.Clone()
 
     # Optional: Detach from the file so they persist even if file closes
     h_3T.SetDirectory(0) 
     h_2T.SetDirectory(0)
-    h_2T_w.SetDirectory(0)
 
     n_bins = h_3T.GetNbinsX()
 
     fold_data = []
 
     if TrainRegion == "3b":
-        split_indices = [SplitIndex] if SplitIndex is not None else range(5)
-        for split in split_indices:
+        n_splits = 5         
+        for split in range(n_splits):
             for fold in range(1, n_folds + 1):
                 h_name = f"{var_name}_hist_2b_split{split}_fold{fold}"
                 h_fold = file.Get(h_name)
@@ -823,9 +812,7 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
             y_mean *= scale_factor
             err_sys  *= scale_factor
 
-    err_stat = np.array([h_2T_w.GetBinError(i) for i in range(1, n_bins+1)])
-    if normalize:
-        err_stat *= scale_factor
+    err_stat = np.array([h_2T.GetBinError(i) for i in range(1, n_bins+1)])
     err_3T_stat = np.array([h_3T.GetBinError(i) for i in range(1, n_bins+1)])
 
     if NonClosureFracPath is not None:
@@ -883,115 +870,6 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
     else:
         return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_3T_stat
 
-PAIR_DEPENDENT_COLUMNS = {
-    "Hcand_1_pt": "Hcand_1_pt_pair",
-    "Hcand_1_eta": "Hcand_1_eta_pair",
-    "Hcand_1_phi": "Hcand_1_phi_pair",
-    "Hcand_1_mass": "Hcand_1_mass_pair",
-    "Hcand_2_pt": "Hcand_2_pt_pair",
-    "Hcand_2_eta": "Hcand_2_eta_pair",
-    "Hcand_2_phi": "Hcand_2_phi_pair",
-    "Hcand_2_mass": "Hcand_2_mass_pair",
-    "H1_b1b2_deta": "H1_b1b2_deta_pair",
-    "H1_b1b2_dphi": "H1_b1b2_dphi_pair",
-    "H1_b1b2_dR": "H1_b1b2_dR_pair",
-    "H2_b1b2_deta": "H2_b1b2_deta_pair",
-    "H2_b1b2_dphi": "H2_b1b2_dphi_pair",
-    "H2_b1b2_dR": "H2_b1b2_dR_pair",
-    "H1H2_pt": "H1H2_pt_pair",
-    "H1H2_eta": "H1H2_eta_pair",
-    "H1H2_phi": "H1H2_phi_pair",
-    "H1H2_deta": "H1H2_deta_pair",
-    "H1H2_dphi": "H1H2_dphi_pair",
-    "H1H2_dR": "H1H2_dR_pair",
-}
-
-
-def _load_selected_training_pair_features(file_list, pair_index, n_source_events):
-    """Load and select one value from each pairing-dependent training branch."""
-    if pair_index not in (0, 1, 2):
-        raise ValueError(f"Pairing index must be 0, 1, or 2; received {pair_index}.")
-
-    pair_branches = list(PAIR_DEPENDENT_COLUMNS.values())
-
-    for file_path in file_list:
-        with uproot.open(file_path) as input_file:
-            tree = input_file["Tree_JetInfo"]
-            missing = [branch for branch in pair_branches if branch not in tree]
-            if missing:
-                raise KeyError(
-                    f"Pairing-dependent branches missing from {file_path}: {', '.join(missing)}"
-                )
-
-    pair_arrays = uproot.concatenate(
-        [f"{file_path}:Tree_JetInfo" for file_path in file_list],
-        expressions=pair_branches,
-        library="ak",
-    )
-
-    if len(pair_arrays) != n_source_events:
-        raise ValueError(
-            "Pairing-dependent and scalar branch loads contain different event counts: "
-            f"{len(pair_arrays)} versus {n_source_events}."
-        )
-
-    selected_features = {}
-    for feature_name, branch_name in PAIR_DEPENDENT_COLUMNS.items():
-        branch_values = pair_arrays[branch_name]
-        branch_lengths = ak.num(branch_values, axis=1)
-        short_mask = branch_lengths < 3
-
-        if bool(ak.any(short_mask)):
-            first_bad = int(ak.to_numpy(ak.where(short_mask)[0])[0])
-            actual_length = int(branch_lengths[first_bad])
-            raise ValueError(
-                f"Branch '{branch_name}' must contain at least three values per event; "
-                f"event {first_bad} contains {actual_length}."
-            )
-
-        selected = ak.to_numpy(branch_values[:, pair_index])
-        if selected.ndim != 1 or len(selected) != n_source_events:
-            raise ValueError(
-                f"Selecting index {pair_index} from '{branch_name}' produced shape "
-                f"{selected.shape}; expected ({n_source_events},)."
-            )
-        selected_features[feature_name] = selected
-
-    print(f"[PAIR] Applied pairing index {pair_index} to {len(selected_features)} training features:")
-    for feature_name, branch_name in PAIR_DEPENDENT_COLUMNS.items():
-        print(f"[PAIR]   {feature_name} <- {branch_name}[{pair_index}]")
-
-    diagnostic_branch = "Hcand_1_pt_pair"
-    n_diagnostic = min(3, n_source_events)
-    diagnostic_indices = np.arange(n_diagnostic)
-    diagnostic_values = pair_arrays[diagnostic_branch][diagnostic_indices]
-    print(f"[PAIR] Diagnostic sample for {diagnostic_branch}:")
-    for event_idx, original_values in zip(
-        diagnostic_indices, ak.to_list(diagnostic_values)
-    ):
-        print(
-            f"[PAIR]   source event {event_idx}: values={original_values}, "
-            f"selected[{pair_index}]={original_values[pair_index]}"
-        )
-
-    return selected_features
-
-
-def select_3b_split(sig_idx, split_index, n_splits=5, seed=42):
-    """Return the deterministic 3b subset used by training and evaluation."""
-    if split_index not in range(n_splits):
-        raise ValueError(
-            f"SplitIndex must be in the range 0-{n_splits - 1}; received {split_index}."
-        )
-
-    shuffled_idx = np.array(sig_idx, copy=True)
-    np.random.default_rng(seed=seed).shuffle(shuffled_idx)
-    chunk_size = len(shuffled_idx) // n_splits
-    start_idx = split_index * chunk_size
-    end_idx = len(shuffled_idx) if split_index == n_splits - 1 else start_idx + chunk_size
-    return shuffled_idx[start_idx:end_idx], start_idx, end_idx
-
-
 def processing(file_list, args=None):
     """
     Process data from root files
@@ -1015,25 +893,12 @@ def processing(file_list, args=None):
             'Hcand_mass', 'Ycand_mass']
 
     if args.runType == "train-only":
-        scalar_columns = [
-            column for column in columns
-            if column not in PAIR_DEPENDENT_COLUMNS
-        ]
-        scalar_tree_arr = uproot.concatenate(
+        tree_arr = uproot.concatenate(
             [f"{f}:Tree_JetInfo" for f in file_list], 
-            expressions=scalar_columns,
+            expressions=columns, 
             library="np"
         )
-        n_events = len(scalar_tree_arr["JetAK4_pt_1"])
-        pair_index = getattr(args, "pair_index", 0)
-        selected_pair_features = _load_selected_training_pair_features(
-            file_list, pair_index, n_events
-        )
-        tree_arr = {
-            column: selected_pair_features[column]
-            if column in selected_pair_features else scalar_tree_arr[column]
-            for column in columns
-        }
+        n_events = len(tree_arr["JetAK4_pt_1"]) 
 
     elif args.runType == "test-only": 
         #input_file = uproot.open(f"/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root")
@@ -1100,22 +965,49 @@ def processing(file_list, args=None):
     sig_idx = np.where(sig_mask)[0]
     bkg_idx = np.where(bkg_mask)[0]
 
-# Use the same deterministic five-way 3b definition for training and validation.
-    if args.TrainRegion == "3b" and args.runType in ("train-only", "test-only"):
-        split_index = getattr(args, "SplitIndex", None)
-        if split_index is None:
-            raise ValueError("--SplitIndex is required for 3b training and evaluation.")
-
+# split into 5 for 3b region
+    if args.runType == "train-only" and args.TrainRegion == "3b":
+        
+        rng = np.random.default_rng(seed=42)
+        
+        rng.shuffle(sig_idx)
+        
         n_total_3b = len(sig_idx)
-        sig_idx, start_idx, end_idx = select_3b_split(sig_idx, split_index)
-        region_label = args.TestRegion if args.runType == "test-only" else "training off-mass"
-        print(f"[INFO] 3b Split Strategy ({region_label}): Using Split {split_index}/5")
-        print(
-            f"[INFO] 3b target events: full={n_total_3b}, selected={len(sig_idx)}; "
-            f"slice=[{start_idx}, {end_idx})"
-        )
-        if args.runType == "test-only":
-            print(f"[INFO] 2b source events remain unsplit: {len(bkg_idx)}")
+        chunk_size = int(n_total_3b / 5)
+        
+        start_idx = args.SplitIndex * chunk_size
+        end_idx   = start_idx + chunk_size
+        
+        if args.SplitIndex == 4:
+            end_idx = n_total_3b
+            
+        print(f"[INFO] 3b Split Strategy: Using Split {args.SplitIndex}/5")
+        print(f"[INFO] Slice Range: {start_idx} to {end_idx} (Total 3b Pool: {n_total_3b})")
+        
+        sig_idx_subset = sig_idx[start_idx : end_idx]
+        sig_idx = sig_idx_subset
+    
+
+# Need to be deleted! Only for testing this time
+    # if args.runType == "test-only" and args.TrainRegion == "3b":
+        
+    #     rng = np.random.default_rng(seed=42)
+        
+    #     rng.shuffle(sig_idx)
+        
+    #     n_total_3b = len(sig_idx)
+    #     chunk_size = int(n_total_3b / 5)
+        
+    #     start_idx = 1 * chunk_size
+    #     end_idx   = start_idx + chunk_size
+        
+            
+    #     print(f"[INFO] 3b Split Strategy: Using Split 1/5")
+    #     print(f"[INFO] Slice Range: {start_idx} to {end_idx} (Total 3b Pool: {n_total_3b})")
+        
+    #     sig_idx_subset = sig_idx[start_idx : end_idx]
+    #     sig_idx = sig_idx_subset
+# ==========================================================
 
 
     if args.isBalanceClass == 1:
@@ -1235,7 +1127,6 @@ def processing(file_list, args=None):
     if args.runType == "test-only":
         aux_data = {
             "jets": jets,             
-            "source_indices": all_idx,
             "MX": mx,                 
             "MH": MH,
             "MY": MY,
@@ -1417,7 +1308,7 @@ def get_unrolled_bins_for_my(target_my_bins, mx_bin_edges=None, my_bin_edges=Non
     each MY bin to its corresponding 1D unrolled bin indices.
     
     Args:
-        target_my_bins (list of int): e.g., [6, 7, 8, 9, 10, 11]
+        target_my_bins (list of int): e.g., [6, 7, 8]
         mx_bin_edges (np.array, optional): Edges for MX.
         my_bin_edges (np.array, optional): Edges for MY.
         
@@ -1425,14 +1316,11 @@ def get_unrolled_bins_for_my(target_my_bins, mx_bin_edges=None, my_bin_edges=Non
         dict: Format {my_bin_index: [list_of_unrolled_1d_indices]}
     """
     
-    # Use the analysis binning as the single source of truth. Explicit arrays
-    # remain supported for callers that intentionally need another binning.
-    if mx_bin_edges is None or my_bin_edges is None:
-        binning_map = build_binning_map(njets=4)
-        if mx_bin_edges is None:
-            mx_bin_edges = np.asarray(binning_map["MX"])
-        if my_bin_edges is None:
-            my_bin_edges = np.asarray(binning_map["MY"])
+    # Default edges if none are provided
+    if mx_bin_edges is None:
+        mx_bin_edges = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+    if my_bin_edges is None:
+        my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
 
     n_my_bins = len(my_bin_edges) - 1
     n_mx_bins = len(mx_bin_edges) - 1
@@ -1472,14 +1360,11 @@ def get_binning_mappings(mx_bin_edges=None, my_bin_edges=None):
       - 'unrolled_to_label': dict[int, str] -> {unrolled_bin: "MX..._MY..."}
     """
     
-    # Use the analysis binning as the single source of truth. Explicit arrays
-    # remain supported for callers that intentionally need another binning.
-    if mx_bin_edges is None or my_bin_edges is None:
-        binning_map = build_binning_map(njets=4)
-        if mx_bin_edges is None:
-            mx_bin_edges = np.asarray(binning_map["MX"])
-        if my_bin_edges is None:
-            my_bin_edges = np.asarray(binning_map["MY"])
+    # Default edges
+    if mx_bin_edges is None:
+        mx_bin_edges = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+    if my_bin_edges is None:
+        my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
 
     n_my_bins = len(my_bin_edges) - 1
     n_mx_bins = len(mx_bin_edges) - 1

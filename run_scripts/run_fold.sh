@@ -5,15 +5,17 @@ MODE="" # 'train' or 'test'
 REGION="" # '4b' or '3b'
 TEST_REGION="" # '3btest', '3bHiggsMW', '4btest', '4bHiggsMW'
 PAIR_INDEX="0" # Four-jet pairing index for training
+SPLIT_INDEX="" # Selected 3b split for evaluation
 
 usage() {
-    echo "Usage: bash run_fold.sh -y <year> -m <train|test> -r <4b|3b> [-p <0|1|2>]"
+    echo "Usage: bash run_fold.sh -y <year> -m <train|test> -r <4b|3b> [-p <0|1|2>] [-s <0|1|2|3|4>]"
     echo "Options:"
     echo "  -y, --YEAR  <year>    [REQUIRED] Data taking year (e.g., 2024, 2025)"
     echo "  -m, --mode  <mode>    [REQUIRED] Execution mode: 'train' or 'test'"
     echo "  -r, --region <reg>    [REQUIRED] Analysis region: '4b' or '3b'" 
     echo "  -tr, --testregion <test_reg>    [OPTIONAL] Test region: '3btest', '3bHiggsMW', '4btest', '4bHiggsMW'"
     echo "  -p, --pair-index <idx> [OPTIONAL] Training pairing index: 0, 1, or 2 (default: 0)"
+    echo "  -s, --split-index <idx> [REQUIRED for 3b test] Validation split: 0, 1, 2, 3, or 4"
     exit 1
 }
 
@@ -24,6 +26,7 @@ while [[ "$#" -gt 0 ]]; do
         -r|--region) REGION="$2"; shift ;;
         -tr|--testregion) TEST_REGION="$2"; shift ;;
         -p|--pair-index) PAIR_INDEX="$2"; shift ;;
+        -s|--split-index) SPLIT_INDEX="$2"; shift ;;
         -h|--help) usage ;;
         *) echo "[ERROR] Unknown parameter: $1"; usage ;;
     esac
@@ -48,6 +51,16 @@ fi
 
 if [[ "$PAIR_INDEX" != "0" && "$PAIR_INDEX" != "1" && "$PAIR_INDEX" != "2" ]]; then
     echo "[ERROR] Pair index must be 0, 1, or 2. Received: ${PAIR_INDEX}"
+    exit 1
+fi
+
+if [[ -n "$SPLIT_INDEX" && ! "$SPLIT_INDEX" =~ ^[0-4]$ ]]; then
+    echo "[ERROR] Split index must be 0, 1, 2, 3, or 4. Received: ${SPLIT_INDEX}"
+    exit 1
+fi
+
+if [[ "$MODE" == "test" && "$REGION" == "3b" && -z "$SPLIT_INDEX" ]]; then
+    echo "[ERROR] --split-index is required for 3b evaluation."
     exit 1
 fi
 
@@ -103,6 +116,9 @@ else
     script_name="fold_unroll${REGION}_evaluation_removeempty.py"
     plot_script_name="plot_fold.py"
     output_dir="${input_dir}/${TEST_REGION}_evaluation"
+    if [[ "$REGION" == "3b" ]]; then
+        output_dir="${output_dir}/SplitIndex${SPLIT_INDEX}"
+    fi
     output_job_dir="${output_dir}/job3"
     isBalance=0
 fi
@@ -146,7 +162,7 @@ load_mass_points() {
         if (!tree || tree->GetEntries() < 1) { std::cerr << "Missing Tree_SignalGrid" << std::endl; gSystem->Exit(2); }
         std::vector<int>* mx = nullptr; std::vector<int>* my = nullptr;
         tree->SetBranchAddress("mX_sig", &mx); tree->SetBranchAddress("mY_sig", &my); tree->GetEntry(0);
-        if (!mx || !my || mx->size() != 272 || my->size() != 272) { std::cerr << "Mass-point mapping must contain 272 MX/MY entries" << std::endl; gSystem->Exit(3); }
+        if (!mx || !my || mx->size() != 273 || my->size() != 273) { std::cerr << "Mass-point mapping must contain 273 MX/MY entries" << std::endl; gSystem->Exit(3); }
         for (size_t i = 0; i < mx->size(); ++i) std::cout << "MASS_POINT " << mx->at(i) << " " << my->at(i) << std::endl;
     ' 2>&1); then
         echo "[ERROR] Failed to read mass-point mapping from ${mapping_file}:"
@@ -166,8 +182,8 @@ load_mass_points() {
         MASS_POINTS+=("${mx} ${my}")
     done <<< "$root_output"
 
-    if [[ "${#MASS_POINTS[@]}" -ne 272 ]]; then
-        echo "[ERROR] Expected 272 mass points, found ${#MASS_POINTS[@]}."
+    if [[ "${#MASS_POINTS[@]}" -ne 273 ]]; then
+        echo "[ERROR] Expected 273 mass points, found ${#MASS_POINTS[@]}."
         return 1
     fi
 }
@@ -194,8 +210,14 @@ else
 
     for mass_point in "${MASS_POINTS[@]}"; do
         read -r mx my <<< "$mass_point"
-        job_key="Evaluation_${REGION}vs2b_${special_name}_MX${mx}_MY${my}"
-        jobs["$job_key"]="python3 ${script_name} --YEAR ${YEAR} --isScaling 1 --isBalanceClass ${isBalance} --Model DNN --runType test-only --TrainRegion ${REGION} --TestRegion ${TEST_REGION} --Nfold ${n_folds} --MX ${mx} --MY ${my}"
+        split_args=""
+        split_job_suffix=""
+        if [[ "$REGION" == "3b" ]]; then
+            split_args="--SplitIndex ${SPLIT_INDEX}"
+            split_job_suffix="_SplitIndex${SPLIT_INDEX}"
+        fi
+        job_key="Evaluation_${REGION}vs2b_${special_name}${split_job_suffix}_MX${mx}_MY${my}"
+        jobs["$job_key"]="python3 ${script_name} --YEAR ${YEAR} --isScaling 1 --isBalanceClass ${isBalance} --Model DNN --runType test-only --TrainRegion ${REGION} --TestRegion ${TEST_REGION} --Nfold ${n_folds} --MX ${mx} --MY ${my} ${split_args}"
     done
 fi
 
@@ -223,7 +245,6 @@ executable = $exe_file
 getenv     = TRUE
 request_memory = 24 GB
 request_cpus = 4
-request_gpus = 1
 log        = $output_job_dir/logs/job_${name}.log
 output     = $output_job_dir/logs/job_${name}.out
 error      = $output_job_dir/logs/job_${name}.err
@@ -240,4 +261,4 @@ done
 
 chmod +x "$master_submit"
 echo "[SUCCESS] All ${MODE}ing jobs for ${REGION} prepared."
-echo "          Submit with: $master_submit"
+echo "          Submit with: bash $master_submit"
