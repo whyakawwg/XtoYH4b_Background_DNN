@@ -89,7 +89,7 @@ python3 Hist2Comb.py --YEAR 2024
 ```
 Check the datacard creation script `CreateCards_XYHto4b_full.C`, if everything is correct (e.g. uncertainties), compile
 ```
-scram b j10
+scram b -j10
 ```
 
 ## Calculate and plot the limits

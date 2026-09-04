@@ -395,7 +395,7 @@ int main(int argc, char **argv) {
   if (btag_sf_option == "WP") {
       SystNames.push_back("Btag_WP_SF_correlated");
       // SystNames.push_back("Btag_WP_SF_uncorrelated");
-      SystNames.push_back("Btag_WP_SF_uncorrelated_" + year);
+      SystNames.push_back("Btag_WP_SF_uncorrelated" + "_" + year);
   } else if (btag_sf_option == "Shape") {
       SystNames.push_back("Btag_SF_jes");
       SystNames.push_back("Btag_SF_lf");

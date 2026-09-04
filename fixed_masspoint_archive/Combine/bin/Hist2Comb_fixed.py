@@ -233,6 +233,7 @@ signal_systematic_eras_decorrelated = [
 
 if args.Btag_SF == "WP":
     signal_systematic_uncs.extend(["Btag_WP_SF_correlated","Btag_WP_SF_uncorrelated"])
+    signal_systematic_eras_decorrelated.extend(["Btag_WP_SF_uncorrelated"])
 elif args.Btag_SF == "Shape":
     signal_systematic_uncs.extend(["Btag_SF_jes","Btag_SF_lf","Btag_SF_lfstats1","Btag_SF_lfstats2",
                                     "Btag_SF_hf","Btag_SF_hfstats1","Btag_SF_hfstats2","Btag_SF_cferr1","Btag_SF_cferr2",

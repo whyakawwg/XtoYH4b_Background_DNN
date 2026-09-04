@@ -83,6 +83,7 @@ fi
 base_script_dir="/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN/fixed_masspoint_archive/"
 input_dir="/data/dust/user/wanghaoy/XtoYH4b/${special_name}"
 CMSSW_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/XtoYH4b/"
+plot_dir="/afs/desy.de/user/w/wanghaoy/dust/XtoYH4b_Background_DNN/fixed_masspoint_archive/plot_fold.py"
 
 if [[ "$MODE" == "train" ]]; then
     script_name="fold_training.py"
@@ -98,6 +99,7 @@ fi
 
 mkdir -p "$output_job_dir/logs"
 cp "${base_script_dir}/${script_name}" "$output_dir"
+[[ "$MODE" == "test" && "$TEST_REGION" != "4bHiggsMW" ]] && cp "${plot_dir}" "$output_dir"
 
 
 declare -A jobs
@@ -120,6 +122,7 @@ if [[ "$MODE" == "train" ]]; then
 else
     job_key="Evaluation_${REGION}vs2b_${special_name}"
     jobs["$job_key"]="python3 ${script_name} --YEAR ${YEAR} --isScaling 1 --isBalanceClass ${isBalance} --Model DNN --runType test-only --TrainRegion ${REGION} --TestRegion ${TEST_REGION} --Nfold ${n_folds}"
+    jobs["$job_key"]+=" && python3 ${plot_dir} --YEAR ${YEAR} --isScaling 1 --isBalanceClass ${isBalance} --Model DNN --runType test-only --TrainRegion ${REGION} --TestRegion ${TEST_REGION} --Nfold ${n_folds}"
 fi
 
 
