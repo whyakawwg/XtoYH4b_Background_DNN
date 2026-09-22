@@ -44,8 +44,8 @@ if [[ "$mode" -eq 1 ]]; then
         mkdir -p limits${suffix}
 
         cd datacards${suffix}
-        # WP b-tag systematics, with the optional 3bHiggsMW non-closure disabled.
-        CreateCardsfull ${year} data_driven WP 0 0 0 # ${add_4b_nc} ${add_higgsMW_my_uncertainty} ${add_3b_higgs_nc}
+        # CreateCardsfull ${year} data_driven
+        CreateCardsfull_fixed ${year} data_driven
     fi 
     
     cd $Combine_script_dir
@@ -72,6 +72,7 @@ elif [[ "$mode" -eq 3 ]]; then
     python3 plotLimits.py --YEAR ${year} --SUFFIX ${suffix}
     python3 plotLimits_MYMX.py --YEAR ${year} --SUFFIX ${suffix}
     cp MXMY_LimitsPlots/${year}/plots${suffix}/${year}_Grid_Brazilian_limit_Scen_1.png LimitsPlots/${year}/plots${suffix}/
+
 
 else
     echo "[ERROR] Invalid mode: $mode. Please choose 1, 2, check_ws or 3."

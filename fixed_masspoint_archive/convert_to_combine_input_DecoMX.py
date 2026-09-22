@@ -2,7 +2,7 @@ import ROOT
 import argparse
 import sys
 
-sys.path.insert(0, "/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN")
+sys.path.insert(0, "/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN/fixed_masspoint_archive")
 from fold_functions_ptcut import build_binning_map
 
 parser = argparse.ArgumentParser(description="Convert background histograms to Combine input format")

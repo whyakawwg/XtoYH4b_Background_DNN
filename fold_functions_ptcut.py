@@ -883,6 +883,126 @@ def get_hist_with_total_error(file, var_name, n_folds, normalize=True, TrainRegi
     else:
         return edges, y_mean, y_3T, y_2T, err_tot, scale_factor, chi2_val, chi2_2b, err_stat, err_sys, ratio_3b_2b, ratio_3b_2b_w, ratio_err_tot, ratio_err_stat, ratio_err_sys, err_3T_stat
 
+def mass_point_to_index(file_list, mx, my):
+    """Return the unique Tree_SignalGrid index for an (MX, MY) point."""
+    mappings = []
+    for file_path in file_list:
+        with uproot.open(file_path) as input_file:
+            if "Tree_SignalGrid" not in input_file:
+                raise RuntimeError(
+                    f"Tree_SignalGrid is missing from {file_path}."
+                )
+            grid = input_file["Tree_SignalGrid"]
+            mx_entries = ak.to_list(grid["mX_sig"].array(library="ak"))
+            my_entries = ak.to_list(grid["mY_sig"].array(library="ak"))
+            mappings.extend(
+                tuple(zip(mx_values, my_values))
+                for mx_values, my_values in zip(mx_entries, my_entries)
+            )
+
+    if not mappings or any(mapping != mappings[0] for mapping in mappings[1:]):
+        raise RuntimeError("Mass-point mappings differ across the input files.")
+
+    matches = [
+        index for index, point in enumerate(mappings[0])
+        if point == (mx, my)
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"Expected one Tree_SignalGrid entry for (MX, MY)=({mx}, {my}); "
+            f"found {len(matches)}."
+        )
+    return matches[0]
+
+
+def load_pair_features(file_list, pair_index=None, mass_index=None):
+    """Read pairing features using a fixed pair or per-event best_pair_sig."""
+
+    if (pair_index is None) == (mass_index is None):
+        raise ValueError("Specify exactly one of pair_index or mass_index.")
+    if pair_index is not None and pair_index not in (0, 1, 2):
+        raise ValueError(f"Invalid pair index: {pair_index}")
+
+    branches = list(PAIR_DEPENDENT_COLUMNS.values())
+
+    # Fixed-pair training files are small enough to read in one operation.
+    if mass_index is None:
+        arrays = uproot.concatenate(
+            [f"{path}:Tree_JetInfo" for path in file_list],
+            expressions=branches,
+            library="ak",
+        )
+        selected = {}
+        for feature, branch in PAIR_DEPENDENT_COLUMNS.items():
+            values = arrays[branch]
+            if bool(ak.any(ak.num(values, axis=1) <= pair_index)):
+                raise ValueError(
+                    f"{branch} does not contain pair {pair_index} for every event"
+                )
+            selected[feature] = ak.to_numpy(values[:, pair_index])
+        return selected
+
+    # best_pair_sig has one entry per mass point and is very large. Process it
+    # in chunks so test jobs do not retain the full jagged array in memory.
+    selected_chunks = {feature: [] for feature in PAIR_DEPENDENT_COLUMNS}
+    expressions = ["best_pair_sig", *branches]
+    for file_path in file_list:
+        with uproot.open(file_path) as input_file:
+            tree = input_file["Tree_JetInfo"]
+            missing = [branch for branch in expressions if branch not in tree]
+            if missing:
+                raise RuntimeError(
+                    f"Missing pairing branches in {file_path}: {', '.join(missing)}"
+                )
+
+            for arrays in tree.iterate(
+                expressions=expressions,
+                step_size=50000,
+                library="ak",
+            ):
+                best_pairs = arrays["best_pair_sig"]
+                if bool(ak.any(ak.num(best_pairs, axis=1) <= mass_index)):
+                    raise ValueError(
+                        f"best_pair_sig does not contain mass index {mass_index} "
+                        "for every event"
+                    )
+                pair_indices = ak.to_numpy(best_pairs[:, mass_index])
+                if np.any(~np.isin(pair_indices, (0, 1, 2))):
+                    raise ValueError(
+                        "best_pair_sig contains a value other than 0, 1, or 2"
+                    )
+
+                for feature, branch in PAIR_DEPENDENT_COLUMNS.items():
+                    values = arrays[branch]
+                    if bool(ak.any(ak.num(values, axis=1) < 3)):
+                        raise ValueError(
+                            f"{branch} does not contain all three pairings for every event"
+                        )
+                    values_by_pair = ak.to_numpy(values[:, :3])
+                    selected_chunks[feature].append(
+                        values_by_pair[np.arange(len(pair_indices)), pair_indices]
+                    )
+
+    return {
+        feature: np.concatenate(chunks) if chunks else np.empty(0)
+        for feature, chunks in selected_chunks.items()
+    }
+
+
+def select_3b_split(sig_idx, split_index, n_splits=5, seed=42):
+    """Return the deterministic 3b subset used by training and evaluation."""
+    if split_index not in range(n_splits):
+        raise ValueError(
+            f"SplitIndex must be in the range 0-{n_splits - 1}; received {split_index}."
+        )
+
+    shuffled_idx = np.array(sig_idx, copy=True)
+    np.random.default_rng(seed=seed).shuffle(shuffled_idx)
+    chunk_size = len(shuffled_idx) // n_splits
+    start_idx = split_index * chunk_size
+    end_idx = len(shuffled_idx) if split_index == n_splits - 1 else start_idx + chunk_size
+    return shuffled_idx[start_idx:end_idx], start_idx, end_idx
+
 PAIR_DEPENDENT_COLUMNS = {
     "Hcand_1_pt": "Hcand_1_pt_pair",
     "Hcand_1_eta": "Hcand_1_eta_pair",
@@ -904,92 +1024,9 @@ PAIR_DEPENDENT_COLUMNS = {
     "H1H2_deta": "H1H2_deta_pair",
     "H1H2_dphi": "H1H2_dphi_pair",
     "H1H2_dR": "H1H2_dR_pair",
+    "Hcand_mass": "Hcand_mass_pair",
+    "Ycand_mass": "Ycand_mass_pair",
 }
-
-
-def _load_selected_training_pair_features(file_list, pair_index, n_source_events):
-    """Load and select one value from each pairing-dependent training branch."""
-    if pair_index not in (0, 1, 2):
-        raise ValueError(f"Pairing index must be 0, 1, or 2; received {pair_index}.")
-
-    pair_branches = list(PAIR_DEPENDENT_COLUMNS.values())
-
-    for file_path in file_list:
-        with uproot.open(file_path) as input_file:
-            tree = input_file["Tree_JetInfo"]
-            missing = [branch for branch in pair_branches if branch not in tree]
-            if missing:
-                raise KeyError(
-                    f"Pairing-dependent branches missing from {file_path}: {', '.join(missing)}"
-                )
-
-    pair_arrays = uproot.concatenate(
-        [f"{file_path}:Tree_JetInfo" for file_path in file_list],
-        expressions=pair_branches,
-        library="ak",
-    )
-
-    if len(pair_arrays) != n_source_events:
-        raise ValueError(
-            "Pairing-dependent and scalar branch loads contain different event counts: "
-            f"{len(pair_arrays)} versus {n_source_events}."
-        )
-
-    selected_features = {}
-    for feature_name, branch_name in PAIR_DEPENDENT_COLUMNS.items():
-        branch_values = pair_arrays[branch_name]
-        branch_lengths = ak.num(branch_values, axis=1)
-        short_mask = branch_lengths < 3
-
-        if bool(ak.any(short_mask)):
-            first_bad = int(ak.to_numpy(ak.where(short_mask)[0])[0])
-            actual_length = int(branch_lengths[first_bad])
-            raise ValueError(
-                f"Branch '{branch_name}' must contain at least three values per event; "
-                f"event {first_bad} contains {actual_length}."
-            )
-
-        selected = ak.to_numpy(branch_values[:, pair_index])
-        if selected.ndim != 1 or len(selected) != n_source_events:
-            raise ValueError(
-                f"Selecting index {pair_index} from '{branch_name}' produced shape "
-                f"{selected.shape}; expected ({n_source_events},)."
-            )
-        selected_features[feature_name] = selected
-
-    print(f"[PAIR] Applied pairing index {pair_index} to {len(selected_features)} training features:")
-    for feature_name, branch_name in PAIR_DEPENDENT_COLUMNS.items():
-        print(f"[PAIR]   {feature_name} <- {branch_name}[{pair_index}]")
-
-    diagnostic_branch = "Hcand_1_pt_pair"
-    n_diagnostic = min(3, n_source_events)
-    diagnostic_indices = np.arange(n_diagnostic)
-    diagnostic_values = pair_arrays[diagnostic_branch][diagnostic_indices]
-    print(f"[PAIR] Diagnostic sample for {diagnostic_branch}:")
-    for event_idx, original_values in zip(
-        diagnostic_indices, ak.to_list(diagnostic_values)
-    ):
-        print(
-            f"[PAIR]   source event {event_idx}: values={original_values}, "
-            f"selected[{pair_index}]={original_values[pair_index]}"
-        )
-
-    return selected_features
-
-
-def select_3b_split(sig_idx, split_index, n_splits=5, seed=42):
-    """Return the deterministic 3b subset used by training and evaluation."""
-    if split_index not in range(n_splits):
-        raise ValueError(
-            f"SplitIndex must be in the range 0-{n_splits - 1}; received {split_index}."
-        )
-
-    shuffled_idx = np.array(sig_idx, copy=True)
-    np.random.default_rng(seed=seed).shuffle(shuffled_idx)
-    chunk_size = len(shuffled_idx) // n_splits
-    start_idx = split_index * chunk_size
-    end_idx = len(shuffled_idx) if split_index == n_splits - 1 else start_idx + chunk_size
-    return shuffled_idx[start_idx:end_idx], start_idx, end_idx
 
 
 def processing(file_list, args=None):
@@ -998,6 +1035,22 @@ def processing(file_list, args=None):
     """
     njets = 4
 
+    # columns = ['JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
+    #         'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 
+    #         'JetAK4_eta_1', 'JetAK4_eta_2', 'JetAK4_eta_3', 'JetAK4_eta_4', 
+    #         'JetAK4_phi_1', 'JetAK4_phi_2', 'JetAK4_phi_3', 'JetAK4_phi_4', 
+    #         'JetAK4_mass_1', 'JetAK4_mass_2', 'JetAK4_mass_3', 'JetAK4_mass_4',
+    #         'JetAK4_add_pt', 'JetAK4_add_eta', 'JetAK4_add_phi', 'JetAK4_add_mass', 
+    #         'Hcand_1_pt_pair', 'Hcand_1_eta_pair', 'Hcand_1_phi_pair', 'Hcand_1_mass_pair',
+    #         'Hcand_2_pt_pair', 'Hcand_2_eta_pair', 'Hcand_2_phi_pair', 'Hcand_2_mass_pair',
+    #         'H1_b1b2_deta_pair', 'H1_b1b2_dphi_pair', 'H1_b1b2_dR_pair',
+    #         'H2_b1b2_deta_pair', 'H2_b1b2_dphi_pair', 'H2_b1b2_dR_pair',
+    #         'H1H2_pt_pair', 'H1H2_eta_pair', 'H1H2_phi_pair', #'H1H2_mass',
+    #         'H1H2_deta_pair', 'H1H2_dphi_pair', 'H1H2_dR_pair',
+    #         'HT_4j',
+    #         'njets_add', 'HT_add',
+    #         'Hcand_mass_pair', 'Ycand_mass_pair']
+    # if args.isFixed1000125:
     columns = ['JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
             'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 
             'JetAK4_eta_1', 'JetAK4_eta_2', 'JetAK4_eta_3', 'JetAK4_eta_4', 
@@ -1014,6 +1067,8 @@ def processing(file_list, args=None):
             'njets_add', 'HT_add',
             'Hcand_mass', 'Ycand_mass']
 
+    # colums_pair = ['Hcand_mass_pair', 'Ycand_mass_pair', 'Hcand_1_pt_pair', 'Hcand_1_eta_pair', 'Hcand_1_phi_pair', 'Hcand_1_mass_pair', 'Hcand_2_pt_pair', 'Hcand_2_eta_pair', 'Hcand_2_phi_pair', 'Hcand_2_mass_pair', 'H1_b1b2_deta_pair', 'H1_b1b2_dphi_pair', 'H1_b1b2_dR_pair','H2_b1b2_deta_pair', 'H2_b1b2_dphi_pair', 'H2_b1b2_dR_pair', 'H1H2_pt_pair', 'H1H2_eta_pair', 'H1H2_phi_pair', 'H1H2_mass_pair', 'H1H2_deta_pair', 'H1H2_dphi_pair', 'H1H2_dR_pair', 'angle_CS_theta_H1_pair', 'angle_CS_theta_H2_pair', 'angle_CS_theta_H1H2_pair']
+
     if args.runType == "train-only":
         scalar_columns = [
             column for column in columns
@@ -1026,8 +1081,8 @@ def processing(file_list, args=None):
         )
         n_events = len(scalar_tree_arr["JetAK4_pt_1"])
         pair_index = getattr(args, "pair_index", 0)
-        selected_pair_features = _load_selected_training_pair_features(
-            file_list, pair_index, n_events
+        selected_pair_features = load_pair_features(
+            file_list, pair_index
         )
         tree_arr = {
             column: selected_pair_features[column]
@@ -1036,11 +1091,25 @@ def processing(file_list, args=None):
         }
 
     elif args.runType == "test-only": 
-        #input_file = uproot.open(f"/data/dust/user/wanghaoy/XtoYH4b/Tree_Data_Parking.root")
-        input_file = uproot.open(file_list[0])
-        tree = input_file["Tree_JetInfo"]
-        n_events = tree.num_entries
-        tree_arr = tree.arrays(columns, library="np", entry_stop=n_events)
+        scalar_columns = [
+            column for column in columns
+            if column not in PAIR_DEPENDENT_COLUMNS
+        ]
+        scalar_tree_arr = uproot.concatenate(
+            [f"{f}:Tree_JetInfo" for f in file_list],
+            expressions=scalar_columns,
+            library="np",
+        )
+        n_events = len(scalar_tree_arr["JetAK4_pt_1"])
+        mass_index = mass_point_to_index(file_list, args.MX, args.MY)
+        selected_pair_features = load_pair_features(
+            file_list, mass_index=mass_index
+        )
+        tree_arr = {
+            column: selected_pair_features[column]
+            if column in selected_pair_features else scalar_tree_arr[column]
+            for column in columns
+        }
 
     else:
         print("Enter valid run type: train-only or test-only.")

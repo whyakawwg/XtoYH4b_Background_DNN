@@ -248,66 +248,66 @@ def plotting_2D(arr_3T, arr_2T, varX="MX", varY="dR1_plot",
     h3T.Delete()
     h2T_w.Delete()
 
-def build_binning_map(njets):
-    """
-    Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
-    """
-    bin_edges      = np.linspace(0, 1, 51)
+# def build_binning_map(njets):
+#     """
+#     Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
+#     """
+#     bin_edges      = np.linspace(0, 1, 51)
 
-    # mx_bin_edges   = np.array([110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
-    mx_bin_edges   = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+#     # mx_bin_edges   = np.array([110,135,165,200,250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
+#     mx_bin_edges   = np.array([250,300,375,450,550,675,825,1000,1250,1600,2000,2500,3000,4000,5000])
 
-    my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375, 
-                             450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
-    mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
-    jet_mass_bin_edges = np.linspace(0, 100, 51)
-    njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
-    eta_bin_edges  = np.linspace(-5, 5, 51)
-    phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
-    HT_bin_edges   = np.linspace(0, 2000, 51)
-    dr_bin_edges   = np.linspace(0, 6.3, 51)
-    pt_bin_edges   = np.linspace(0, 1000, 51)
+#     my_bin_edges = np.array([30,40,50,60,75,90,110,135,165,200,250,300,375, 
+#                              450,550,675,825,1000,1250,1600,2000,2500,3000,4000])
+#     mh_bin_edges   = np.array([30,40,50,60,75,90,110,135,165,200,250,300])
+#     jet_mass_bin_edges = np.linspace(0, 100, 51)
+#     njets_add_bin_edges = np.array([0,1,2,3,4,5,6])
+#     eta_bin_edges  = np.linspace(-5, 5, 51)
+#     phi_bin_edges  = np.linspace(-3.14, 3.14, 65)
+#     HT_bin_edges   = np.linspace(0, 2000, 51)
+#     dr_bin_edges   = np.linspace(0, 6.3, 51)
+#     pt_bin_edges   = np.linspace(0, 1000, 51)
 
-    bin_map = {
-        "MX": mx_bin_edges,
-        "MY": my_bin_edges,
-        "MH": mh_bin_edges,
-        "Score": bin_edges,
-        "n_jets_add": njets_add_bin_edges,
-        "HT_additional": HT_bin_edges,
-        "HT_4j": HT_bin_edges,
-        "dR1_plot": dr_bin_edges,
-        "dR2_plot": dr_bin_edges,
-    }
+#     bin_map = {
+#         "MX": mx_bin_edges,
+#         "MY": my_bin_edges,
+#         "MH": mh_bin_edges,
+#         "Score": bin_edges,
+#         "n_jets_add": njets_add_bin_edges,
+#         "HT_additional": HT_bin_edges,
+#         "HT_4j": HT_bin_edges,
+#         "dR1_plot": dr_bin_edges,
+#         "dR2_plot": dr_bin_edges,
+#     }
 
-    # jet AK4 vars
-    for i in range(1, njets + 1):
-        bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
-        bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
-        bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
-        bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
+#     # jet AK4 vars
+#     for i in range(1, njets + 1):
+#         bin_map[f"JetAK4_mass_{i}"] = jet_mass_bin_edges
+#         bin_map[f"JetAK4_pt_{i}"]   = pt_bin_edges
+#         bin_map[f"JetAK4_eta_{i}"]  = eta_bin_edges
+#         bin_map[f"JetAK4_phi_{i}"]  = phi_bin_edges
 
-    # Higgs candidates
-    for v in ["pt", "eta", "phi"]:
-        edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
-        bin_map[f"Hcand_1_{v}"] = edges
-        bin_map[f"Hcand_2_{v}"] = edges
+#     # Higgs candidates
+#     for v in ["pt", "eta", "phi"]:
+#         edges = pt_bin_edges if v=="pt" else (eta_bin_edges if v=="eta" else phi_bin_edges)
+#         bin_map[f"Hcand_1_{v}"] = edges
+#         bin_map[f"Hcand_2_{v}"] = edges
 
-    # H1/H2 deta/dphi/dR
-    for h in ["H1", "H2"]:
-        bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
-        bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
-        bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
+#     # H1/H2 deta/dphi/dR
+#     for h in ["H1", "H2"]:
+#         bin_map[f"{h}_b1b2_deta"] = eta_bin_edges
+#         bin_map[f"{h}_b1b2_dphi"] = phi_bin_edges
+#         bin_map[f"{h}_b1b2_dR"]   = dr_bin_edges
 
-    # H1H2 system
-    bin_map["H1H2_pt"]   = pt_bin_edges
-    bin_map["H1H2_eta"]  = eta_bin_edges
-    bin_map["H1H2_phi"]  = phi_bin_edges
-    bin_map["H1H2_deta"] = eta_bin_edges
-    bin_map["H1H2_dphi"] = phi_bin_edges
-    bin_map["H1H2_dR"]   = dr_bin_edges
+#     # H1H2 system
+#     bin_map["H1H2_pt"]   = pt_bin_edges
+#     bin_map["H1H2_eta"]  = eta_bin_edges
+#     bin_map["H1H2_phi"]  = phi_bin_edges
+#     bin_map["H1H2_deta"] = eta_bin_edges
+#     bin_map["H1H2_dphi"] = phi_bin_edges
+#     bin_map["H1H2_dR"]   = dr_bin_edges
 
-    return bin_map
+#     return bin_map
 
 def build_fine_binning_map(njets):
     """
@@ -369,7 +369,7 @@ def build_fine_binning_map(njets):
 
     return bin_map
 
-def build_Run2_binning_map(njets):
+def build_binning_map(njets):
     """
     Define bin edges for all variables. Return a dictionary mapping variable names to their bin edges.
     """

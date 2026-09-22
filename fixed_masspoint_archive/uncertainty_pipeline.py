@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings("ignore", message="The value of the smallest subnormal")
 import sys
 
-sys.path.insert(0, "/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN")
+sys.path.insert(0, "/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN/fixed_masspoint_archive")
 import fold_functions_ptcut
 from fold_functions_ptcut import (
     get_hist_with_total_error,
