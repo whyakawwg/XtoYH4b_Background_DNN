@@ -213,12 +213,13 @@ int main(int argc, char **argv) {
       }
 
       // Add rateParam 
-      cb.cp().process({"Inclusive_Bkg"}).AddSyst(
-          cb, "bkg_norm_"+year, "rateParam", ch::syst::SystMap<>::init(1.0)
-      );
+      // Commmented out only for testing! on 14 Sept
+    //   cb.cp().process({"Inclusive_Bkg"}).AddSyst(
+    //       cb, "bkg_norm_"+year, "rateParam", ch::syst::SystMap<>::init(1.0)
+    //   );
 
-      // Set the range [0.1, 2.5] for the parameter
-      cb.GetParameter("bkg_norm_"+year)->set_range(0.1, 2.5);
+    //   // Set the range [0.1, 2.5] for the parameter
+    //   cb.GetParameter("bkg_norm_"+year)->set_range(0.1, 2.5);
 
       // Apply MY125Bin_Uncertainty exclusively to the MY bin for the background Separately bin 6 
     // for (int i = 7; i <= 11; ++i) {
@@ -436,12 +437,13 @@ int main(int argc, char **argv) {
         
 		cb.cp().bin({b}).mass({m, "*"}).WriteDatacard(b + "_" + m + ".txt", output);
 
-        ofstream out_file;
-        out_file.open(b + "_" + m + ".txt", ios_base::app); // ios_base::app ensures we add to the end
-        if (out_file.is_open()) {
-            out_file << "* autoMCStats 0\n"; 
-            out_file.close();
-        }
+        // Only commented out for testing on 14 Sept
+        // ofstream out_file;
+        // out_file.open(b + "_" + m + ".txt", ios_base::app); // ios_base::app ensures we add to the end
+        // if (out_file.is_open()) {
+        //     out_file << "* autoMCStats 0\n"; 
+        //     out_file.close();
+        // }
 	}
   }
   //! [part9]

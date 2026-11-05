@@ -32,6 +32,7 @@ class Logger(object):
 parser = argparse.ArgumentParser(description="Arguments: YEAR")
 parser.add_argument('--YEAR', default="2022", type=str, help="Which era?")
 parser.add_argument('--SUFFIX', default="", type=str, help="Suffix for workspace and limit directories")
+parser.add_argument('--TEMPLATE', default="1", type=str, help="Template number to check (default: 1)")
 parser.add_argument('--NoSys', action='store', default=False, type=bool, help = "No systematic uncs?")
 
 args = parser.parse_args()
@@ -509,18 +510,25 @@ if __name__ == "__main__":
     
     if args.NoSys:
         input_dir = os.path.join(path_dir, args.YEAR, "limits_v5_nosys")
-        output_dir = os.path.join(os.getcwd(), "MXMY_LimitsPlots", args.YEAR, "plots_nosys")
+        output_dir = os.path.join(os.getcwd(), "MXMY_LimitsPlots", args.YEAR, "Grid_plots_nosys")
     else:
         input_dir = os.path.join(path_dir, args.YEAR, f"limits{suffix}")
-        output_dir = os.path.join(os.getcwd(), "MXMY_LimitsPlots", args.YEAR, f"plots{suffix}")
+        output_dir = os.path.join(os.getcwd(), "MXMY_LimitsPlots", args.YEAR, f"Grid_plots{suffix}")
 
     os.makedirs(output_dir, exist_ok=True)
     log_file_name = f"PlotLimits_log_{args.YEAR}{args.SUFFIX}.txt"
     sys.stdout = Logger(os.path.join(output_dir, log_file_name))
     print(f"Logging all output to {log_file_name}")
 
-    templates = [1]
+    templates = args.TEMPLATE  # Split the input string into a list of templates
     label_list = [">=T,>=T,>=T,>=M"]
+
+    if templates == "1":
+        label_list = ["Unrolled\n>=T,>=T,>=T,>=M"]
+    if templates == "2":
+        label_list = ["MX\n>=T,>=T,>=T,>=M"]
+    if templates == "3":
+        label_list = ["MY\n>=T,>=T,>=T,>=M"]
 
     failed_files = plotLimits(log=False, inDir=input_dir, outDir=output_dir, shapes=templates, legends=label_list)
 

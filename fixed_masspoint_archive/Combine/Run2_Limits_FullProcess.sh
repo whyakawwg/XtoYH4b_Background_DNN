@@ -22,7 +22,9 @@ if [[ -z "$mode" ]]; then
 fi
 
 CombineResults_dir="/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg"
-Combine_script_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/CombineHarvester/CombineTools/XYHto4b/"
+Combine_script_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/CombineHarvester/CombineTools/XYHto4b/Limits/"
+
+templates=(1)
 
 if [[ "$mode" != "3" ]]; then
     source /cvmfs/cms.cern.ch/cmsset_default.sh
@@ -45,22 +47,24 @@ if [[ "$mode" -eq 1 ]]; then
 
         cd datacards${suffix}
         # CreateCardsfull ${year} data_driven
-        CreateCardsfull_fixed ${year} data_driven
+        if ! compgen -G 'XYH_4b_*' > /dev/null; then
+            CreateCardsfull_fixed ${year} data_driven
+        fi
     fi 
     
     cd $Combine_script_dir
-    bash run_text2workspace_condor.sh ${year} ${suffix}
-    bash $CombineResults_dir/${year}/workspace${suffix}/condor_submit_text2workspace_1.sh
+    bash run_text2workspace_condor.sh ${year} ${suffix} ${templates}
+    bash $CombineResults_dir/${year}/workspace${suffix}/condor_submit_text2workspace_${templates}.sh
 
 elif [[ "$mode" == "check_ws" ]]; then
     echo "Checking workspaces for year ${year} with suffix ${suffix}... do Run_Limits_FullProcess.sh ${year} ${suffix} 2 after confirming all workspaces are created."
     cd $Combine_script_dir
-    python3 check_workspaces.py --YEAR ${year} --SUFFIX ${suffix}
+    python3 check_workspaces.py --YEAR ${year} --SUFFIX ${suffix} --TEMPLATE ${templates}
 
 elif [[ "$mode" -eq 2 ]]; then
     echo "Running limit calculation for year ${year} with suffix ${suffix}..."
     cd $Combine_script_dir
-    bash run_limit_condor.sh ${year} ${suffix}
+    bash run_limit_condor.sh ${year} ${suffix} ${templates}
     bash $CombineResults_dir/${year}/workspace${suffix}/condor_submit.sh
     echo "Note, need to open a new terminal to do the next step! "
 
@@ -69,9 +73,9 @@ elif [[ "$mode" -eq 3 ]]; then
     echo "Running plotting limits for year ${year} with suffix ${suffix}..."
     source /data/dust/user/chatterj/environments/bdt/bin/activate
     cd $Combine_script_dir
-    python3 plotLimits.py --YEAR ${year} --SUFFIX ${suffix}
-    python3 plotLimits_MYMX.py --YEAR ${year} --SUFFIX ${suffix}
-    cp MXMY_LimitsPlots/${year}/plots${suffix}/${year}_Grid_Brazilian_limit_Scen_1.png LimitsPlots/${year}/plots${suffix}/
+    python3 plotLimits.py --YEAR ${year} --SUFFIX ${suffix} --TEMPLATE ${templates}
+    python3 plotLimits_MYMX.py --YEAR ${year} --SUFFIX ${suffix} --TEMPLATE ${templates}
+    cp MXMY_LimitsPlots/${year}/plots${suffix}/${year}_Grid_Brazilian_limit_Scen_${templates}.png LimitsPlots/${year}/plots${suffix}/
 
 
 else

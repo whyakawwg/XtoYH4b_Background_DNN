@@ -1024,8 +1024,8 @@ PAIR_DEPENDENT_COLUMNS = {
     "H1H2_deta": "H1H2_deta_pair",
     "H1H2_dphi": "H1H2_dphi_pair",
     "H1H2_dR": "H1H2_dR_pair",
-    "Hcand_mass": "Hcand_mass_pair",
-    "Ycand_mass": "Ycand_mass_pair",
+    "Hcand_mass": "Hcand_mass_BDT_pair",
+    "Ycand_mass": "Ycand_mass_BDT_pair",
 }
 
 
@@ -1169,7 +1169,7 @@ def processing(file_list, args=None):
     sig_idx = np.where(sig_mask)[0]
     bkg_idx = np.where(bkg_mask)[0]
 
-# Use the same deterministic five-way 3b definition for training and validation.
+    # Use the same deterministic five-way 3b definition for training and validation.
     if args.TrainRegion == "3b" and args.runType in ("train-only", "test-only"):
         split_index = getattr(args, "SplitIndex", None)
         if split_index is None:

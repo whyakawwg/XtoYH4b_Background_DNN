@@ -890,7 +890,7 @@ def processing(file_list, args=None):
             'H1H2_deta', 'H1H2_dphi', 'H1H2_dR',
             'HT_4j',
             'njets_add', 'HT_add',
-            'Hcand_mass', 'Ycand_mass']
+            'Hcand_mass_BDT', 'Ycand_mass_BDT']
 
     if args.runType == "train-only":
         tree_arr = uproot.concatenate(
@@ -916,7 +916,7 @@ def processing(file_list, args=None):
     wp3 = tree_arr["JetAK4_btag_B_WP_3"]
     wp4 = tree_arr["JetAK4_btag_B_WP_4"]
 
-    H_mass = tree_arr["Hcand_mass"]
+    H_mass = tree_arr["Hcand_mass_BDT"]
     min_mask = (H_mass > 50) & (H_mass < 300)
     common_mask = ((H_mass < 90) | (H_mass > 150)) & min_mask
     bkg_mask = (wp1 >= 3) & (wp2 >= 3) & (wp3 < 2) & (wp4 < 2) & common_mask & min_mask
@@ -1086,8 +1086,8 @@ def processing(file_list, args=None):
         Scaling = "NoScaling"
 
     if args.runType == "test-only":
-        MH = tree_arr["Hcand_mass"][all_idx]
-        MY = tree_arr["Ycand_mass"][all_idx]
+        MH = tree_arr["Hcand_mass_BDT"][all_idx]
+        MY = tree_arr["Ycand_mass_BDT"][all_idx]
         n_jets_add = tree_arr["njets_add"][all_idx]
         HT_additional = tree_arr["HT_add"][all_idx]
 
@@ -1108,7 +1108,7 @@ def processing(file_list, args=None):
 
     drop_cols += Hcand_index_cols 
     drop_cols += [f"JetAK4_btag_B_WP_{i+1}" for i in range(njets)]
-    drop_cols += ["Hcand_mass", "Ycand_mass"]
+    drop_cols += ["Hcand_mass_BDT", "Ycand_mass_BDT"]
     drop_cols += ["dR_1", "dR_2"]
     drop_cols += ["HT_add", "njets_add"]
     drop_cols += [f"JetAK4_add_{var}" for var in ["pt", "eta", "phi", "mass"]]
@@ -1482,14 +1482,14 @@ def get_norm_scale_factor(file_path, train_region):
     
     essential_columns = [
         'JetAK4_btag_B_WP_1', 'JetAK4_btag_B_WP_2', 'JetAK4_btag_B_WP_3', 'JetAK4_btag_B_WP_4',
-        'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 'Hcand_mass'
+        'JetAK4_pt_1', 'JetAK4_pt_2', 'JetAK4_pt_3', 'JetAK4_pt_4', 'Hcand_mass_BDT'
     ]
 
     with uproot.open(file_path) as f:
         tree = f["Tree_JetInfo"]
         arr = tree.arrays(essential_columns, library="np")
 
-    h_mass = arr["Hcand_mass"]
+    h_mass = arr["Hcand_mass_BDT"]
     min_mask = (h_mass > 50) & (h_mass < 300)
     pt_mask = (arr["JetAK4_pt_1"] > 50) & (arr["JetAK4_pt_2"] > 50) & \
               (arr["JetAK4_pt_3"] > 50) & (arr["JetAK4_pt_4"] > 50)

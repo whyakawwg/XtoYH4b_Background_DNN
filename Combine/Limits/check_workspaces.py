@@ -5,13 +5,14 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--YEAR", default="2024", type=str, help="Which era?")
 parser.add_argument("--SUFFIX", default="", type=str, help="Suffix for workspace and limit directories")
+parser.add_argument("--TEMPLATE", default="1", type=str, help="Template number to check (default: 1)")
 args = parser.parse_args()
 
 path_dir = Path(f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg/{args.YEAR}")
 input_dir = path_dir / f"datacards{args.SUFFIX}"
 output_dir = path_dir / f"workspace{args.SUFFIX}"
 
-templates = [1]
+templates = [args.TEMPLATE]
 missing_files = []
 expected_count = 0
 

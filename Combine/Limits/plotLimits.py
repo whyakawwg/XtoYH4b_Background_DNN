@@ -38,6 +38,7 @@ class Logger(object):
 parser = argparse.ArgumentParser(description="Arguments: YEAR")
 parser.add_argument('--YEAR', default="2022", type=str, help="Which era?")
 parser.add_argument('--SUFFIX', default="", type=str, help="Suffix for workspace and limit directories")
+parser.add_argument('--TEMPLATE', default="1", type=str, help="Template number to check (default: 1)")
 parser.add_argument('--NoSys', action='store', default=False, type=bool, help = "No systematic uncs?")
 
 args = parser.parse_args()
@@ -226,7 +227,7 @@ def plot2D_log(group,variable_to_plot,z_axis_title,outdir,filename,cmap_style='O
     plt.savefig(os.path.join(outdir, out_file_name), dpi=1000, bbox_inches="tight")
 
 
-def plotLimits(log=False,inDir="",outDir="",shapes=[],legends=[]):
+def plotLimits(log=False,inDir="",outDir="",shapes=[],legends=None):
 
     #input_dir = "/afs/desy.de/user/c/chokepra/private/XtoYH4b/CMSSW_14_2_1/src/CombineHarvester/CombineTools/XYHto4b/workspace_v3"
     #output_dir ="/afs/desy.de/user/c/chokepra/private/XtoYH4b/CMSSW_14_2_1/src/CombineHarvester/CombineTools/XYHto4b/ExpLimits_v3"
@@ -313,10 +314,10 @@ def plotLimits(log=False,inDir="",outDir="",shapes=[],legends=[]):
         # plot2D(group,"expected","Expected limits at 95% CL [fb]",outDir,f"Exp_limits_MX_MY_{scenario}_vmax200",'OrRd',True,legends[scenario-1], vmax=200)
         # plot2D_log(group,"expected","Expected limits at 95% CL [fb]",outDir,f"Exp_limits_MX_MY_{scenario}",'viridis',True,legends[scenario-1])
         
-        plot2D(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1])
-        plot2D(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}_vmax200",'OrRd',True,legends[scenario-1], vmax=200)
-        plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1], show_values=True)
-        plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1], show_values=False)
+        plot2D(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends)
+        plot2D(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}_vmax200",'OrRd',True,legends, vmax=200)
+        plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends, show_values=True)
+        plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends, show_values=False)
         # plot2D_log(group,"expected",y_axis_title,outDir,f"Exp_limits_MX_MY_{scenario}",'OrRd',True,legends[scenario-1])
 
     # ratio between combine and inclusive signal regions #
@@ -360,8 +361,16 @@ if __name__ == "__main__":
     #templates = [1, 2, 3, 4, 5, 6]
     #label_list = ["XXT,XXT,>=XT,>=XT", "XXT,XXT,XT,XT", "XXT,XXT,XXT,XT", "XXT,XXT,XXT,XXT", "combined", ">=T,>=T,>=T,>=M"]
 
-    templates = [1]
-    label_list = [">=T,>=T,>=T,>=M"] # , "MX", "MY"]
+    templates = args.TEMPLATE
+    if templates == "1":
+        distribution_name = "Unrolled"
+    if templates == "2":
+        distribution_name = "MX"
+    if templates == "3":
+        distribution_name = "MY"
+    label_list = f"{distribution_name}\n>=T,>=T,>=T,>=M" # , "MX", "MY"]
+
+    
     # label_list = ["XXT,XXT,[>=XT,>=XT]", ">=T,>=T,>=T,>=M"]
 
     failed_files = plotLimits(log=False,inDir=input_dir,outDir=output_dir,shapes=templates,legends=label_list)

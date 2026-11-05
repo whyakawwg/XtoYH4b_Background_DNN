@@ -14,7 +14,7 @@ usage() {
     echo "  -m, --mode  <mode>    [REQUIRED] Execution mode: 'train' or 'test'"
     echo "  -r, --region <reg>    [REQUIRED] Analysis region: '4b' or '3b'" 
     echo "  -tr, --testregion <test_reg>    [OPTIONAL] Test region: '3btest', '3bHiggsMW', '4btest', '4bHiggsMW'"
-    echo "  -p, --pair-index <idx> [OPTIONAL] Training pairing index: 0, 1, or 2 (default: 0)"
+    echo "  -p, --pair-index <idx> [REQUIRED for training] Training pairing index: 0, 1, or 2 (default: 0)"
     echo "  -s, --split-index <idx> [REQUIRED for 3b test] Validation split: 0, 1, 2, 3, or 4"
     exit 1
 }

@@ -63,7 +63,10 @@ fi
 script_dir="/data/dust/user/wanghaoy/XtoYH4b/XtoYH4b_Background_DNN"
 output_job_dir="${output_dir}/jobs_${REGION}"
 
-BkgOutputDir="/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/BackgroundEstimation"
+BkgOutputDir="/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/BackgroundEstimation/${YEAR}/${REGION}"
+if [[ "$REGION" == "3b" ]]; then
+    BkgOutputDir="${BkgOutputDir}/SplitIndex${SPLIT_INDEX}"
+fi
 
 mkdir -p "$output_dir"
 mkdir -p "$output_job_dir"
@@ -181,6 +184,8 @@ for mass_point in "${MASS_POINTS[@]}"; do
         evaluation_split_suffix="_SplitIndex${SPLIT_INDEX}"
         test_evaluation_file="${input_dir}/${test_region}_evaluation${evaluation_split_dir}/${test_region}_OnlyPhysical${evaluation_split_suffix}${mass_suffix}.root"
         signal_evaluation_file="${input_dir}/${signal_region}_evaluation${evaluation_split_dir}/${signal_region}_OnlyPhysical${evaluation_split_suffix}${mass_suffix}.root"
+        final_file="BkgEst_${signal_stem}_SplitIndex${SPLIT_INDEX}.root"
+        command_3b="mv BkgEst_${signal_stem}.root ${final_file}"
     fi
 
     nc_3b_setup=""
@@ -212,10 +217,11 @@ require_file $combined_file 'combined uncertainty input'
 python3 $shared_uncertainty_script --YEAR $YEAR --runType test-only --TrainRegion $REGION --TestRegion $signal_region --function apply_bkg_norm_scalefactor --MX $mx --MY $my $split_args
 require_file $scaled_file 'scaled Combine input'
 python3 $shared_converter_script --YEAR $YEAR --MX $mx --MY $my
+$command_3b
 require_file $final_file 'final background output'
-mkdir -p $BkgOutputDir/${YEAR}
-cp $final_file $BkgOutputDir/${YEAR}/
-require_file $BkgOutputDir/${YEAR}/$final_file 'copied final background output'
+mkdir -p $BkgOutputDir
+cp $final_file $BkgOutputDir
+require_file $BkgOutputDir/$final_file 'copied final background output'
 bash $shared_cleanup_script $mass_output_dir $final_file"
     job_output_dirs["$name"]="$mass_output_dir"
 done

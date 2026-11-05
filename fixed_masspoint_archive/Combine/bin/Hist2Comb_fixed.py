@@ -167,7 +167,7 @@ def process_histogram(histogram_name, output_file_name, input_dir, signals, back
 
 #Input signal and background processes here
 
-input_dir = "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/"+args.YEAR+"/SIGNAL/HLT_HT250/"
+input_dir = "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/Histograms/"+args.YEAR+"/" #/SIGNAL/HLT_HT250/"
 bkg_dir = "/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/SmallNtuples/BackgroundEstimation/"+args.YEAR+"/"
 
 # Change this to your XtoYH4b directory
