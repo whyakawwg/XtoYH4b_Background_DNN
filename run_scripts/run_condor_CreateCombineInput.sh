@@ -200,6 +200,7 @@ for mass_point in "${MASS_POINTS[@]}"; do
         nc_3b_setup="${nc_3b_setup}python3 $shared_uncertainty_script --YEAR $YEAR --runType test-only --TrainRegion 3b --TestRegion 3bHiggsMW --Plot 0 --CreateUncHist 0 --function save_nc_3b --MX $mx --MY $my
 require_file $nc_3b_factor_file 'pooled five-split nc_3b factor output'"
         nc_3b_add_args="--Add3bHiggsMWNonClosure 1"
+        command_3b=""
     fi
 
     jobs["$name"]="require_file $test_evaluation_file 'test-region evaluation input'

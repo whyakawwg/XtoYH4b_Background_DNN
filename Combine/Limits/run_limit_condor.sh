@@ -3,7 +3,9 @@
 year="$1"
 suffix="$2"
 
-statonly="$3"
+templates="$3"  # Capture all templates starting from the third argument
+
+statonly="$4"
 
 path_dir="/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg"
 
@@ -30,7 +32,8 @@ if [[ "$statonly" -eq 1 ]]; then
 	output_dir="${path_dir}/limits_v5_nosys"
 fi
 
-templates=(1) # Only unrolled here
+# templates=(1) # Only unrolled here
+templates=($3) 
 
 submission_file="$input_dir/condor_submit.sh"
 submission_local="$input_dir/run_local.sh"

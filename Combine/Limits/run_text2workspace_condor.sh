@@ -1,7 +1,7 @@
 #!/bin/bash
 year=$1
 suffix=$2
-
+templates=$3  
 path_dir="/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg"
 path_dir="${path_dir}/${year}"
 
@@ -17,7 +17,8 @@ fi
 
 #templates=(1 2 3 4 5 6 7 8 9 10 11 12)
 #templates=(5 6 11 12)
-templates=(1)
+# templates=(1)
+
 
 for temp in "${templates[@]}"; do
     submission_file="$output_dir/condor_submit_text2workspace_${temp}.sh"

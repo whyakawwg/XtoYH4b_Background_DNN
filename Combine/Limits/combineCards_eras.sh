@@ -2,7 +2,6 @@
 combine_years=($1) # (2024 2025)
 
 suffix=$2
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Eras to combine
 # combine_years=(2024 2025)
@@ -75,7 +74,6 @@ for temp in "${templates[@]}"; do
 		#combine cards
 		# echo ${combine_cmd}
 		eval "${combine_cmd} > \"${output_card}\""
-		python3 "${script_dir}/sort_datacard_naturally.py" "${output_card}"
 
 	done
 done

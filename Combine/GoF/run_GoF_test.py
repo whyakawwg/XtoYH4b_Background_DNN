@@ -27,32 +27,51 @@ def main():
     parser.add_argument("--MX", type=int, help="MX value (e.g., 2000)")
     parser.add_argument("--MY", type=int, help="MY value (e.g., 60)")
     parser.add_argument("--ntoys", type=int, default=500, help="Number of toys: Default: 500")
+    parser.add_argument("--split-index", type=int, choices=range(5), default=None, help="3b validation split; omit for the existing 4b workflow")
     parser.add_argument('--float_signal', action='store',      default=False,   type=bool,           help="Float signal strength?  Default: False")
     parser.add_argument('--algorithm', default="saturated", type=str, help="Algorithm: Default: saturated; Other options: KS, AD")
 
     args = parser.parse_args()
 
-    file_path = "CombineResults/"+args.YEAR+"/workspaces.txt"
+    if args.split_index is None:
+        file_path = "CombineResults/"+args.YEAR+"/workspaces.txt"
+        workspace = find_workspace(file_path, args.combination, args.MX, args.MY)
+        Output = "XYH4b_"+args.YEAR+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)
+        signal_option = " --fixedSignalStrength 0"
+        out_file = ".GoFResults_XYH4b_Bonly_"+Output
+    else:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        run_tag = args.YEAR+"_SplitIndex"+str(args.split_index)+"_MX"+str(args.MX)+"_MY"+str(args.MY)
+        workspace = os.path.join(
+            script_dir,
+            "results_3b",
+            run_tag,
+            "workspaces",
+            "XYH_3b_"+str(args.combination)+"_13p6TeV_"+args.YEAR+
+            "_XtoYHto4B_Par-MX-"+str(args.MX)+"-MY-"+str(args.MY)+
+            "_SplitIndex"+str(args.split_index)+".root",
+        )
+        Output = "XYH3b_"+args.YEAR+"_SplitIndex"+str(args.split_index)+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)
+        signal_option = ""
+        out_file = ".GoFResults_Bonly_"+Output
 
-    workspace = find_workspace(file_path, args.combination, args.MX, args.MY)
+        if args.float_signal:
+            parser.error("--float_signal is not available for signal-free 3b workspaces")
 
-    if workspace:
+    if workspace and os.path.isfile(workspace):
         print("Matching workspace found:")
         print(workspace)
     else:
         print("No matching workspace found for the given parameters.")
-
-    Output = "XYH4b_"+args.YEAR+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)
+        return
 
     #First running on data
 
     out_file_data = ".GoFResults_"+Output+"_Data"
     # os.system("combineTool.py -M GoodnessOfFit "+workspace+" -m 125 --algo="+args.algorithm+" -n "+out_file_data)
-    os.system("combineTool.py -M GoodnessOfFit "+workspace+" -m 125 --algo="+args.algorithm+" -n "+out_file_data+" --fixedSignalStrength 0")
+    os.system("combineTool.py -M GoodnessOfFit "+workspace+" -m 125 --algo="+args.algorithm+" -n "+out_file_data+signal_option)
     
     #Then running with toys  
-
-    out_file = ".GoFResults_XYH4b_Bonly_"+Output
 
     if args.float_signal:
 
@@ -67,7 +86,7 @@ def main():
 
         #background-only fit (r=0)
         # os.system("combineTool.py -M GoodnessOfFit "+workspace+" -m 125 --algo="+args.algorithm+" -n "+out_file+" --fixedSignalStrength 0 -t "+str(args.ntoys)+" --toysFrequentist --bypassFrequentistFit")
-        os.system("combineTool.py -M GoodnessOfFit "+workspace+" -m 125 --algo="+args.algorithm+" -n "+out_file+" --fixedSignalStrength 0 -t "+str(args.ntoys)+" --toysFrequentist")
+        os.system("combineTool.py -M GoodnessOfFit "+workspace+" -m 125 --algo="+args.algorithm+" -n "+out_file+signal_option+" -t "+str(args.ntoys)+" --toysFrequentist")
 
 
     #Computing p-value

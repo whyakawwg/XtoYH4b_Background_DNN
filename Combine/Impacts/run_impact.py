@@ -1,62 +1,14 @@
 import argparse
-import glob
 import os
-import re
-import shutil
-import subprocess
 
-def find_workspace(file_path, combination, mx, my):
-    """
-    Reads a text file and returns the matching ROOT file path based on
-    Combination (e.g., 5), MX (e.g., 2000), and MY (e.g., 60).
-    """
-    combo_pattern = f"4b_{combination}_"
-    mx_pattern = f"MX-{mx}_"
-    my_pattern = f"MY-{my}_"
-
-    with open(file_path, "r") as f:
-        for line in f:
-            if combo_pattern in line and mx_pattern in line and my_pattern in line:
-                return line.strip()
-
-    return None
-
-
-def normalize_combine_outputs():
-    pattern = re.compile(r"^(higgsCombine_.+\.mH\d+)\.[^.]+\.root$")
-
-    for file_path in glob.glob("higgsCombine_*.root"):
-        file_name = os.path.basename(file_path)
-        match = pattern.match(file_name)
-        if not match:
-            continue
-
-        expected_name = match.group(1) + ".root"
-        if os.path.exists(expected_name):
-            continue
-
-        try:
-            os.symlink(file_name, expected_name)
-        except FileExistsError:
-            pass
-        except OSError:
-            shutil.copy2(file_path, expected_name)
-
-
-def has_initial_fit_output():
-    return bool(glob.glob("higgsCombine_initialFit_*.MultiDimFit.mH125.root"))
-
-
-def run_command(command):
-    subprocess.run(command, shell=True, check=True)
-    normalize_combine_outputs()
-
+# Note: this should be run after the workspace has been created, e.g. after running Limits
 
 def main():
     parser = argparse.ArgumentParser(
         description="Find a ROOT file path based on combination, MX, and MY values."
     )
     parser.add_argument('--YEAR', default="2022", type=str, help="Which era?")
+    parser.add_argument('--suffix', default="", type=str, help="Suffix for workspace file name")
     parser.add_argument("--combination", type=int, help="Combination number (e.g., 5)")
     parser.add_argument("--MX", type=int, help="MX value (e.g., 2000)")
     parser.add_argument("--MY", type=int, help="MY value (e.g., 60)")
@@ -65,25 +17,18 @@ def main():
 
     args = parser.parse_args()
 
-    file_path = "CombineResults/"+args.YEAR+"/workspaces.txt"
+    workspace = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg/{args.YEAR}/workspace{args.suffix}/workspace_XYH_4b_{args.combination}_13p6TeV_{args.YEAR}_XtoYHto4B_Par-MX-{args.MX}-MY-{args.MY}_TuneCP5_13p6TeV_madgraph-pythia8.root"
 
-    workspace = find_workspace(file_path, args.combination, args.MX, args.MY)
+    os.makedirs(f"ImpactPlots/{args.YEAR}/MX_{args.MX}_MY_{args.MY}", exist_ok=True)
 
-    if workspace:
-        print("Matching workspace found:")
-        print(workspace)
-    else:
-        raise RuntimeError("No matching workspace found for the given parameters.")
+    out_file = "ImpactPlots/"+args.YEAR+"/MX_"+str(args.MX)+"_MY_"+str(args.MY)+"/impacts_XYH4b_"+args.YEAR+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)+"_ExpSignal_"+args.expect_signal
 
-    out_file = "impacts_XYH4b_"+args.YEAR+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)+"_ExpSignal_"+args.expect_signal
-
-    normalize_combine_outputs()
-    if not has_initial_fit_output():
-        run_command("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --doInitialFit --rMax 10 --rMin -1 --expectSignal "+args.expect_signal+" -t "+args.ntoys_impact)
-
-    run_command("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --doFits --rMax 10 --rMin -1 --expectSignal "+args.expect_signal+" -t "+args.ntoys_impact)
-    run_command("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --rMax 10 --rMin -1 -o "+out_file+".json")
-    run_command("plotImpacts.py -i "+out_file+".json -o "+out_file)
+    os.system("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --doInitialFit --rMax 10 --rMin -10 --expectSignal "+args.expect_signal+" -t "+args.ntoys_impact)
+    os.system("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --doFits --rMax 10 --rMin -10 --expectSignal "+args.expect_signal+" -t "+args.ntoys_impact)
+    os.system("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --rMax 10 --rMin -10 -o "+out_file+".json")
+    os.system("plotImpacts.py -i "+out_file+".json -o "+out_file)
 
 if __name__ == "__main__":
     main()
+
+# python3 run_impact.py --YEAR 2024 --suffix _v1_mass --combination 1 --MX 1000 --MY 125 
