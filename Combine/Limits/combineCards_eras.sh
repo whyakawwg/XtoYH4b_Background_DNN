@@ -3,6 +3,8 @@ combine_years=($1) # (2024 2025)
 
 suffix=$2
 
+templates=$3
+
 # Eras to combine
 # combine_years=(2024 2025)
 
@@ -31,7 +33,7 @@ mkdir -p "$output_dir"
 mkdir -p "${base_dir}/${output_subdir}/workspace${suffix}"
 mkdir -p "${base_dir}/${output_subdir}/limits${suffix}"
 
-templates=(1)
+# templates=(1)
 
 
 

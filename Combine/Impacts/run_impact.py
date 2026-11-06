@@ -1,34 +1,100 @@
 import argparse
-import os
+import json
+import shlex
+import subprocess
+from pathlib import Path
 
-# Note: this should be run after the workspace has been created, e.g. after running Limits
+
+def run_command(command, log_path, cwd):
+    print(f"Running: {shlex.join(command)}")
+    with log_path.open("a") as log:
+        log.write(f"\n$ {shlex.join(command)}\n")
+        log.flush()
+        try:
+            subprocess.run(
+                command,
+                cwd=cwd,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=True,
+            )
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise RuntimeError(f"Command failed; see {log_path}") from error
+
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Find a ROOT file path based on combination, MX, and MY values."
+        description="Make blinded impact plots at r=0 and at the expected limit."
     )
-    parser.add_argument('--YEAR', default="2022", type=str, help="Which era?")
-    parser.add_argument('--suffix', default="", type=str, help="Suffix for workspace file name")
-    parser.add_argument("--combination", type=int, help="Combination number (e.g., 5)")
-    parser.add_argument("--MX", type=int, help="MX value (e.g., 2000)")
-    parser.add_argument("--MY", type=int, help="MY value (e.g., 60)")
-    parser.add_argument('--expect_signal',               action='store',      default='1',   type=str,           help="expected signal strength for impact plot?")
-    parser.add_argument('--ntoys_impact',               action='store',      default='-1',   type=str,           help="# of toys for impact plot?")
+    parser.add_argument("--YEAR", default="2022", help="Which era?")
+    parser.add_argument("--suffix", default="", help="Suffix for workspace directory")
+    parser.add_argument("--combination", required=True, type=int, help="Combination number")
+    parser.add_argument("--MX", required=True, type=int, help="MX value")
+    parser.add_argument("--MY", required=True, type=int, help="MY value")
+    parser.add_argument(
+        "--expect_signal",
+        required=True,
+        type=float,
+        help="Expected signal strength; plots are made for r=0 and this value",
+    )
 
+    parser.add_argument("--verbose", default=0, type=int, help="Combine verbosity")
     args = parser.parse_args()
 
-    workspace = f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg/{args.YEAR}/workspace{args.suffix}/workspace_XYH_4b_{args.combination}_13p6TeV_{args.YEAR}_XtoYHto4B_Par-MX-{args.MX}-MY-{args.MY}_TuneCP5_13p6TeV_madgraph-pythia8.root"
 
-    os.makedirs(f"ImpactPlots/{args.YEAR}/MX_{args.MX}_MY_{args.MY}", exist_ok=True)
+    workspace = Path(
+        f"/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg/"
+        f"{args.YEAR}/workspace{args.suffix}/workspace_XYH_4b_{args.combination}_"
+        f"13p6TeV_{args.YEAR}_XtoYHto4B_Par-MX-{args.MX}-MY-{args.MY}_"
+        "TuneCP5_13p6TeV_madgraph-pythia8.root"
+    )
+    if not workspace.is_file():
+        parser.error(f"Workspace does not exist: {workspace}")
 
-    out_file = "ImpactPlots/"+args.YEAR+"/MX_"+str(args.MX)+"_MY_"+str(args.MY)+"/impacts_XYH4b_"+args.YEAR+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)+"_ExpSignal_"+args.expect_signal
+    output_dir = (Path.cwd() / "ImpactPlots" / args.YEAR / f"MX_{args.MX}_MY_{args.MY}").resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    os.system("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --doInitialFit --rMax 10 --rMin -10 --expectSignal "+args.expect_signal+" -t "+args.ntoys_impact)
-    os.system("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --doFits --rMax 10 --rMin -10 --expectSignal "+args.expect_signal+" -t "+args.ntoys_impact)
-    os.system("combineTool.py -M Impacts -d "+workspace+" -m 125 --robustFit 1 --rMax 10 --rMin -10 -o "+out_file+".json")
-    os.system("plotImpacts.py -i "+out_file+".json -o "+out_file)
+    for expected_signal in (0.0, args.expect_signal):
+        signal_label = f"{expected_signal}"
+        safe_signal_label = signal_label.replace("-", "m").replace(".", "p")
+        tag = (
+            f"XYH4b_{args.YEAR}_Comb{args.combination}_MX{args.MX}_MY{args.MY}_"
+            f"r{safe_signal_label}"
+        )
+        output_stem = (
+            f"impacts_XYH4b_{args.YEAR}_Comb-{args.combination}_MX-{args.MX}_"
+            f"MY-{args.MY}_ExpSignal_{signal_label}"
+        )
+        json_path = output_dir / f"{output_stem}.json"
+        log_path = output_dir / f"{output_stem}.log"
+        log_path.write_text("")
+
+        common = [
+            "combineTool.py", "-M", "Impacts", "-d", str(workspace), "-m", "125",
+            "-n", tag, "--robustFit", "1", "--rMin", "-10", "--rMax", "10",
+            "--expectSignal", signal_label, "-t", "-1",
+        ]
+        if args.verbose:
+            common.extend(["--verbose", str(args.verbose)])
+
+        run_command(common + ["--doInitialFit"], log_path, output_dir)
+        run_command(common + ["--doFits"], log_path, output_dir)
+        run_command(common + ["-o", json_path.name], log_path, output_dir)
+
+        run_command(
+            ["plotImpacts.py", "-i", json_path.name, "-o", output_stem],
+            log_path,
+            output_dir,
+        )
+
 
 if __name__ == "__main__":
     main()
 
-# python3 run_impact.py --YEAR 2024 --suffix _v1_mass --combination 1 --MX 1000 --MY 125 
+
+# Example:
+# python3 run_impact.py --YEAR 2024 --suffix _Nov5 --combination 1 --MX 1000 --MY 300 --expect_signal 0.0112
+# python3 run_impact.py --YEAR 2024 --suffix _Nov5 --combination 1 --MX 1800 --MY 600 --expect_signal 0.0073/0.0063
+# python3 run_impact.py --YEAR 2024 --suffix _Nov5 --combination 1 --MX 1000 --MY 125 --expect_signal 0.0044/0.0103
+# python3 run_impact.py --YEAR 2024 --suffix _Nov5 --combination 1 --MX 600 --MY 150 --expect_signal 0.0269

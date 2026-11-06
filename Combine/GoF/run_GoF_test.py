@@ -27,21 +27,16 @@ def main():
     parser.add_argument("--MX", type=int, help="MX value (e.g., 2000)")
     parser.add_argument("--MY", type=int, help="MY value (e.g., 60)")
     parser.add_argument("--ntoys", type=int, default=500, help="Number of toys: Default: 500")
-    parser.add_argument("--split-index", type=int, choices=range(5), default=None, help="3b validation split; omit for the existing 4b workflow")
-    parser.add_argument('--float_signal', action='store',      default=False,   type=bool,           help="Float signal strength?  Default: False")
+    parser.add_argument("--float-signal", action="store_true", help="Float signal strength in toys: Default: False")
+    parser.add_argument("--split-index", type=str, default=None, help="3b validation split; omit for the existing 4b workflow; if combined, use '0_1' for the combined split index (2024_2025)")
     parser.add_argument('--algorithm', default="saturated", type=str, help="Algorithm: Default: saturated; Other options: KS, AD")
+
 
     args = parser.parse_args()
 
-    if args.split_index is None:
-        file_path = "CombineResults/"+args.YEAR+"/workspaces.txt"
-        workspace = find_workspace(file_path, args.combination, args.MX, args.MY)
-        Output = "XYH4b_"+args.YEAR+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)
-        signal_option = " --fixedSignalStrength 0"
-        out_file = ".GoFResults_XYH4b_Bonly_"+Output
-    else:
+    if args.YEAR not in ["2022", "2022EE", "2023", "2023BPix", "2024", "2025"]:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        run_tag = args.YEAR+"_SplitIndex"+str(args.split_index)+"_MX"+str(args.MX)+"_MY"+str(args.MY)
+        run_tag = args.YEAR+"_SplitIndex"+args.split_index+"_MX"+str(args.MX)+"_MY"+str(args.MY)
         workspace = os.path.join(
             script_dir,
             "results_3b",
@@ -49,21 +44,37 @@ def main():
             "workspaces",
             "XYH_3b_"+str(args.combination)+"_13p6TeV_"+args.YEAR+
             "_XtoYHto4B_Par-MX-"+str(args.MX)+"-MY-"+str(args.MY)+
-            "_SplitIndex"+str(args.split_index)+".root",
+            "_SplitIndex"+args.split_index+".root",
         )
-        Output = "XYH3b_"+args.YEAR+"_SplitIndex"+str(args.split_index)+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)
+        Output = "XYH3b_"+args.YEAR+"_SplitIndex"+args.split_index+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)
+        signal_option = ""
+        out_file = ".GoFResults_Bonly_"+Output
+        print("Using combined")
+
+    else:
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        run_tag = args.YEAR+"_SplitIndex"+args.split_index+"_MX"+str(args.MX)+"_MY"+str(args.MY)
+        workspace = os.path.join(
+            script_dir,
+            "results_3b",
+            run_tag,
+            "workspaces",
+            "XYH_3b_"+str(args.combination)+"_13p6TeV_"+args.YEAR+
+            "_XtoYHto4B_Par-MX-"+str(args.MX)+"-MY-"+str(args.MY)+
+            "_SplitIndex"+args.split_index+".root",
+        )
+        Output = "XYH3b_"+args.YEAR+"_SplitIndex"+args.split_index+"_Comb-"+str(args.combination)+"_MX-"+str(args.MX)+"_MY-"+str(args.MY)
         signal_option = ""
         out_file = ".GoFResults_Bonly_"+Output
 
-        if args.float_signal:
-            parser.error("--float_signal is not available for signal-free 3b workspaces")
 
-    if workspace and os.path.isfile(workspace):
-        print("Matching workspace found:")
-        print(workspace)
-    else:
-        print("No matching workspace found for the given parameters.")
-        return
+        if workspace and os.path.isfile(workspace):
+            print("Matching workspace found:")
+            print(workspace)
+        else:
+            print("No matching workspace found for the given parameters.")
+            return
 
     #First running on data
 

@@ -2,6 +2,7 @@
 year=$1
 suffix=$2
 mode=$3
+template=$4
 
 # Validation
 if [[ -z "$year" ]]; then
@@ -24,7 +25,7 @@ fi
 CombineResults_dir="/data/dust/group/cms/higgs-bb-desy/XToYHTo4b/CombineResults/bkg"
 Combine_script_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/CombineHarvester/CombineTools/XYHto4b/Limits/"
 
-templates=(3)
+templates=$4
 
 if [[ "$mode" != "3" ]]; then
     source /cvmfs/cms.cern.ch/cmsset_default.sh
@@ -56,7 +57,7 @@ if [[ "$mode" -eq 1 ]]; then
     bash run_text2workspace_condor.sh ${year} ${suffix} ${templates}
     bash $CombineResults_dir/${year}/workspace${suffix}/condor_submit_text2workspace_${templates}.sh
 
-elif [[ "$mode" == "check_ws" ]]; then
+elif [[ "$mode" == "check_ws" || "$mode" == "check_workspaces.py" ]]; then
     echo "Checking workspaces for year ${year} with suffix ${suffix}... do Run_Limits_FullProcess.sh ${year} ${suffix} 2 after confirming all workspaces are created."
     cd $Combine_script_dir
     python3 check_workspaces.py --YEAR ${year} --SUFFIX ${suffix} --TEMPLATE ${templates}

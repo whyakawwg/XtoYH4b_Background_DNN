@@ -41,6 +41,7 @@ parser.add_argument('--SUFFIX', default="", type=str, help="Suffix for workspace
 parser.add_argument('--TEMPLATE', default="1", type=str, help="Template number to check (default: 1)")
 parser.add_argument('--NoSys', action='store', default=False, type=bool, help = "No systematic uncs?")
 
+
 args = parser.parse_args()
 
 data_lumi = 1.0

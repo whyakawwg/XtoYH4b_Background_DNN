@@ -7,12 +7,22 @@ set -euo pipefail
 
 gof_dir="/afs/desy.de/user/w/wanghaoy/private/work/CMSSW_14_2_1/src/CombineHarvester/CombineTools/XYHto4b/GoF"
 
-year="2024"
-split_index="0"
+# year="2025"
+# split_index="1"
+# combined_eras=0
+
+years=("2024" "2025")
+split_indices=("0" "1")
+year="combined_2024_2025"
+split_index="0_1"
+split_tag="SplitIndex0_1"
+
 mx="600"
 my="150"
 run_tag="${year}_SplitIndex${split_index}_MX${mx}_MY${my}"
 run_dir="${gof_dir}/results_3b/${run_tag}"
+combined_eras=1
+
 
 mkdir -p "${run_dir}/datacards"
 mkdir -p "${run_dir}/workspaces"
@@ -20,13 +30,17 @@ mkdir -p "${run_dir}/gof"
 
 cd "$gof_dir"
 
-python3 write_datacard.py \
-    --YEAR "$year" \
-    --split-index "$split_index" \
-    --MX "$mx" \
-    --MY "$my" \
-    --output-dir "${run_dir}/datacards"
+if [[ $combined_eras -eq 1 ]]; then
+    bash combineCards_eras.sh "${years[*]}" "${split_indices[*]}" "$mx" "$my"
 
+else
+    python3 write_datacard.py \
+        --YEAR "$year" \
+        --split-index "$split_index" \
+        --MX "$mx" \
+        --MY "$my" \
+        --output-dir "${run_dir}/datacards"
+fi
 
 for card in "${run_dir}"/datacards/*.txt; do
     card_name=$(basename "$card" .txt)
@@ -71,7 +85,6 @@ for combination in 1 2 3; do
     result_dir="${run_dir}/gof/combination${combination}"
     mkdir -p "$result_dir"
     cd "$result_dir"
-
     python3 "${gof_dir}/run_GoF_test.py" --YEAR $year  --split-index $split_index --combination "$combination" --MX $mx --MY $my --ntoys 1000 --algorithm saturated \
         | tee "GoF_${year}_SplitIndex${split_index}_Comb${combination}_MX_${mx}_MY_${my}.log"
 done
